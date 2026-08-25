@@ -1,0 +1,15 @@
+{
+  "minClusterSize": 150,
+  "minSamples": 50,
+  "selectionMethod": "eom",
+  "clusterCount": 104,
+  "noisePct": 15.533141210374641,
+  "coverage": 0.8446685878962537,
+  "meanMembership": 0.9054882449914948,
+  "medianMembership": 1.0,
+  "silhouette2d": 0.41902855038642883,
+  "fitSeconds": 45.51672380010132,
+  "parameterAgreementAri": 0.8175930884746099,
+  "balancedScore": 0.795444187838801,
+  "selected": true
+}

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import colorsys
 import csv
+from difflib import SequenceMatcher
 import json
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 PAPER_COUNT = 69_400
 DEFAULT_LENS = "pca100_u30_mcs200_ms15"
+DISPLAY_HDBSCAN_LENS = "display_umap2_mcs150_ms50_eom"
 COLOUR_MATCH_JACCARD = 0.80
 MAP_BACKGROUND = "#12121a"
 MIN_POINT_CONTRAST = 4.5
@@ -288,7 +290,10 @@ def assign_consistent_colours(lenses: list[dict], labels_by_lens: dict[str, np.n
     )
 
 
-def kmeans_terms(public_data: Path, labels: np.ndarray) -> dict[int, list[str]]:
+def cluster_terms(
+    public_data: Path,
+    label_sets: dict[str, np.ndarray],
+) -> dict[str, dict[int, list[str]]]:
     search_rows = json.loads((public_data / "search.json").read_text(encoding="utf-8"))
     abstracts: list[str] = []
     for shard in sorted((public_data / "details").glob("*.json")):
@@ -308,15 +313,106 @@ def kmeans_terms(public_data: Path, labels: np.ndarray) -> dict[int, list[str]]:
     )
     matrix = vectorizer.fit_transform(texts)
     vocabulary = vectorizer.get_feature_names_out()
-    result: dict[int, list[str]] = {}
-    for cluster_id in sorted(np.unique(labels).tolist()):
-        scores = np.asarray(matrix[labels == cluster_id].mean(axis=0)).ravel()
-        best = scores.argsort()[-14:][::-1]
-        result[cluster_id] = vocabulary[best].tolist()
+    result: dict[str, dict[int, list[str]]] = {}
+    for lens_id, labels in label_sets.items():
+        result[lens_id] = {}
+        for cluster_id in sorted(np.unique(labels[labels >= 0]).tolist()):
+            scores = np.asarray(matrix[labels == cluster_id].mean(axis=0)).ravel()
+            best = scores.argsort()[-14:][::-1]
+            result[lens_id][cluster_id] = vocabulary[best].tolist()
     return result
 
 
-def build(source: Path, public_data: Path) -> None:
+def format_topic_term(term: str) -> str:
+    acronyms = {"ai": "AI", "ocr": "OCR", "vr": "VR"}
+    return " ".join(acronyms.get(word, word.capitalize()) for word in term.split())
+
+
+def topic_words_overlap(left: set[str], right: set[str]) -> bool:
+    for left_word in left:
+        for right_word in right:
+            left_singular = left_word[:-1] if left_word.endswith("s") else left_word
+            right_singular = right_word[:-1] if right_word.endswith("s") else right_word
+            if left_singular == right_singular:
+                return True
+            shortest = min(len(left_word), len(right_word))
+            similarity = SequenceMatcher(None, left_word, right_word).ratio()
+            if shortest >= 3 and left_word[:min(4, shortest)] == right_word[:min(4, shortest)]:
+                if similarity >= 0.55:
+                    return True
+            if shortest >= 4 and similarity >= 0.68:
+                return True
+    return False
+
+
+def topic_label(terms: list[str]) -> str:
+    selected: list[str] = []
+    selected_tokens: list[set[str]] = []
+    for term in terms:
+        tokens = {"artificial", "intelligence"} if term == "ai" else set(term.split())
+        if any(topic_words_overlap(tokens, existing) for existing in selected_tokens):
+            continue
+        selected.append(format_topic_term(term))
+        selected_tokens.append(tokens)
+        if len(selected) == 2:
+            break
+    return " · ".join(selected) if selected else "Unlabelled topic"
+
+
+def display_cluster_rows(
+    labels: np.ndarray,
+    terms: dict[int, list[str]],
+    reference_lens: dict,
+    reference_labels: np.ndarray,
+) -> list[dict]:
+    reference_counts = {
+        cluster["id"]: cluster["count"] for cluster in reference_lens["clusters"]
+    }
+    reference_by_id = {
+        cluster["id"]: cluster for cluster in reference_lens["clusters"]
+    }
+    ids, counts = np.unique(labels[labels >= 0], return_counts=True)
+    right_width = int(ids.max()) + 1
+    valid = (reference_labels >= 0) & (labels >= 0)
+    intersections = np.bincount(
+        reference_labels[valid].astype(np.int64) * right_width + labels[valid],
+        minlength=(max(reference_counts) + 1) * right_width,
+    ).reshape(max(reference_counts) + 1, right_width)
+    rows = []
+    used_labels: set[str] = set()
+    for cluster_id, count in zip(ids.tolist(), counts.tolist(), strict=True):
+        best_reference = max(
+            reference_counts,
+            key=lambda reference_id: intersections[reference_id, cluster_id]
+            / (reference_counts[reference_id] + count - intersections[reference_id, cluster_id]),
+        )
+        intersection = int(intersections[best_reference, cluster_id])
+        best_jaccard = intersection / (reference_counts[best_reference] + count - intersection)
+        label = (
+            reference_by_id[best_reference]["label"]
+            if best_jaccard >= COLOUR_MATCH_JACCARD
+            else topic_label(terms[cluster_id])
+        )
+        if label in used_labels:
+            for term in terms[cluster_id]:
+                candidate = f"{label} · {format_topic_term(term)}"
+                if candidate not in used_labels:
+                    label = candidate
+                    break
+        used_labels.add(label)
+        rows.append(
+            {
+                "id": cluster_id,
+                "label": label,
+                "count": count,
+                "terms": terms[cluster_id][:10],
+                "color": "",
+            }
+        )
+    return rows
+
+
+def build(source: Path, public_data: Path, analysis_data: Path) -> None:
     output = public_data / "lenses"
     labels_output = output / "labels"
     labels_output.mkdir(parents=True, exist_ok=True)
@@ -356,11 +452,66 @@ def build(source: Path, public_data: Path) -> None:
             }
         )
 
+    display_labels = np.load(analysis_data / "hdbscan-2d-labels.npy", allow_pickle=False)
+    if display_labels.shape != (PAPER_COUNT,):
+        raise ValueError(f"Unexpected 2D HDBSCAN labels: {display_labels.shape}")
+    display_scan = json.loads(
+        (analysis_data / "hdbscan-2d-selected.json").read_text(encoding="utf-8")
+    )
+    labels_by_lens[DISPLAY_HDBSCAN_LENS] = display_labels
+
     kmeans_labels = np.load(source / "kmeans10" / "labels.npy", allow_pickle=False)
     labels_by_lens["kmeans_pca100_k10"] = kmeans_labels
+    terms_by_lens = cluster_terms(
+        public_data,
+        {
+            DISPLAY_HDBSCAN_LENS: display_labels,
+            "kmeans_pca100_k10": kmeans_labels,
+        },
+    )
+
+    display_file = labels_output / f"{DISPLAY_HDBSCAN_LENS}.bin"
+    write_labels(display_labels, display_file)
+    display_noise_count = int((display_labels < 0).sum())
+    display_cluster_count = len(np.unique(display_labels[display_labels >= 0]))
+    reference_lens = next(lens for lens in lenses if lens["id"] == DEFAULT_LENS)
+    lenses.append(
+        {
+            "id": DISPLAY_HDBSCAN_LENS,
+            "name": f"HDBSCAN · {display_cluster_count} clusters",
+            "optionLabel": f"{display_cluster_count} clusters · display UMAP 2D",
+            "algorithm": "hdbscan",
+            "preferred": False,
+            "labelsFile": f"data/lenses/labels/{DISPLAY_HDBSCAN_LENS}.bin",
+            "clusterCount": display_cluster_count,
+            "noiseCount": display_noise_count,
+            "noisePct": round(display_noise_count / PAPER_COUNT * 100, 2),
+            "method": {
+                "pcaDimensions": 100,
+                "sourceUmapDimensions": 30,
+                "umapDimensions": 2,
+                "clusteringSpace": "display2d",
+                "minClusterSize": int(display_scan["minClusterSize"]),
+                "minSamples": int(display_scan["minSamples"]),
+                "selectionMethod": display_scan["selectionMethod"],
+            },
+            "metrics": {
+                "meanMembership": float(display_scan["meanMembership"]),
+                "silhouette2d": float(display_scan["silhouette2d"]),
+                "parameterAgreementAri": float(display_scan["parameterAgreementAri"]),
+            },
+            "clusters": display_cluster_rows(
+                display_labels,
+                terms_by_lens[DISPLAY_HDBSCAN_LENS],
+                reference_lens,
+                labels_by_lens[DEFAULT_LENS],
+            ),
+        }
+    )
+
     kmeans_file = labels_output / "kmeans_pca100_k10.bin"
     write_labels(kmeans_labels, kmeans_file)
-    terms = kmeans_terms(public_data, kmeans_labels)
+    terms = terms_by_lens["kmeans_pca100_k10"]
     with (source / "kmeans_metrics_20260614_103401.csv").open(newline="", encoding="utf-8") as handle:
         kmeans_metric_rows = list(csv.DictReader(handle))
     kmeans_metrics = next(
@@ -403,7 +554,7 @@ def build(source: Path, public_data: Path) -> None:
     assign_consistent_colours(lenses, labels_by_lens)
 
     catalog = {
-        "version": "2.1.0",
+        "version": "2.2.0",
         "paperCount": PAPER_COUNT,
         "defaultLens": DEFAULT_LENS,
         "projection": {
@@ -427,8 +578,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--public-data", type=Path, default=Path("public/data"))
+    parser.add_argument("--analysis-data", type=Path, default=Path("analysis"))
     args = parser.parse_args()
-    build(args.source.resolve(), args.public_data.resolve())
+    build(args.source.resolve(), args.public_data.resolve(), args.analysis_data.resolve())
 
 
 if __name__ == "__main__":

@@ -31,9 +31,12 @@ type Cluster = {
 
 type LensMethod = {
   pcaDimensions: number;
+  sourceUmapDimensions?: number;
   umapDimensions?: number;
+  clusteringSpace?: 'display2d';
   minClusterSize?: number;
   minSamples?: number;
+  selectionMethod?: 'eom' | 'leaf';
   k?: number;
 };
 
@@ -41,6 +44,9 @@ type LensMetrics = {
   relativeValidity?: number;
   meanPersistence?: number;
   stabilityWeightedCoverage?: number;
+  meanMembership?: number;
+  silhouette2d?: number;
+  parameterAgreementAri?: number;
   silhouetteCosine?: number;
   daviesBouldin?: number;
   calinskiHarabasz?: number;
@@ -161,6 +167,7 @@ function formatDecimal(value: number | undefined, digits = 3): string {
 
 function MethodContent({ lens }: { lens: Lens }) {
   const method = lens.method;
+  const usesDisplaySpace = method.clusteringSpace === 'display2d';
   return (
     <>
       <p className="method-heading">Parameters</p>
@@ -168,10 +175,18 @@ function MethodContent({ lens }: { lens: Lens }) {
         <div><dt>Input</dt><dd>SPECTER embeddings · 768D</dd></div>
         <div><dt>PCA</dt><dd>{method.pcaDimensions}D</dd></div>
         {lens.algorithm === 'hdbscan' ? (
-          <>
-            <div><dt>UMAP</dt><dd>{method.umapDimensions}D · cosine · 15 neighbours · min. distance 0</dd></div>
-            <div><dt>HDBSCAN</dt><dd>min. cluster size {method.minClusterSize} · min. samples {method.minSamples}</dd></div>
-          </>
+          usesDisplaySpace ? (
+            <>
+              <div><dt>UMAP preprocessing</dt><dd>{method.sourceUmapDimensions}D · cosine · 15 neighbours · min. distance 0</dd></div>
+              <div><dt>Clustering space</dt><dd>fixed 2D display UMAP · 15 neighbours · min. distance 0.1</dd></div>
+              <div><dt>HDBSCAN</dt><dd>min. cluster size {method.minClusterSize} · min. samples {method.minSamples} · {method.selectionMethod?.toUpperCase()}</dd></div>
+            </>
+          ) : (
+            <>
+              <div><dt>UMAP</dt><dd>{method.umapDimensions}D · cosine · 15 neighbours · min. distance 0</dd></div>
+              <div><dt>HDBSCAN</dt><dd>min. cluster size {method.minClusterSize} · min. samples {method.minSamples}</dd></div>
+            </>
+          )
         ) : (
           <div><dt>K-means</dt><dd><i>k</i> = {method.k}</dd></div>
         )}
@@ -179,11 +194,19 @@ function MethodContent({ lens }: { lens: Lens }) {
       <p className="method-heading metrics-heading">Metrics</p>
       <dl className="method-metrics">
         {lens.algorithm === 'hdbscan' ? (
-          <>
-            <div title="Density-based cluster validity; higher is better."><dt>Relative validity (DBCV)</dt><dd>{formatDecimal(lens.metrics.relativeValidity)}</dd></div>
-            <div title="Mean persistence of the fitted clusters; higher indicates greater stability."><dt>Mean cluster persistence</dt><dd>{formatDecimal(lens.metrics.meanPersistence)}</dd></div>
-            <div title="Mean cluster persistence weighted by the proportion of papers assigned; higher is better."><dt>Persistence-weighted coverage</dt><dd>{formatDecimal(lens.metrics.stabilityWeightedCoverage)}</dd></div>
-          </>
+          usesDisplaySpace ? (
+            <>
+              <div title="Mean HDBSCAN membership strength among assigned papers; higher is better."><dt>Mean membership strength</dt><dd>{formatDecimal(lens.metrics.meanMembership)}</dd></div>
+              <div title="Silhouette score among assigned papers in the two-dimensional clustering space; higher is better."><dt>Silhouette (2D)</dt><dd>{formatDecimal(lens.metrics.silhouette2d)}</dd></div>
+              <div title="Mean adjusted Rand agreement with adjacent parameter settings in the scan; higher indicates a less parameter-sensitive result."><dt>Parameter agreement (ARI)</dt><dd>{formatDecimal(lens.metrics.parameterAgreementAri)}</dd></div>
+            </>
+          ) : (
+            <>
+              <div title="Density-based cluster validity; higher is better."><dt>Relative validity (DBCV)</dt><dd>{formatDecimal(lens.metrics.relativeValidity)}</dd></div>
+              <div title="Mean persistence of the fitted clusters; higher indicates greater stability."><dt>Mean cluster persistence</dt><dd>{formatDecimal(lens.metrics.meanPersistence)}</dd></div>
+              <div title="Mean cluster persistence weighted by the proportion of papers assigned; higher is better."><dt>Persistence-weighted coverage</dt><dd>{formatDecimal(lens.metrics.stabilityWeightedCoverage)}</dd></div>
+            </>
+          )
         ) : (
           <>
             <div title="Cosine silhouette score in the 100-dimensional PCA space; higher is better."><dt>Silhouette (cosine)</dt><dd>{formatDecimal(lens.metrics.silhouetteCosine)}</dd></div>
@@ -1163,7 +1186,9 @@ export default function Atlas() {
               <article className="atlas-overview">
                 <h3>
                   {activeLens?.algorithm === 'hdbscan'
-                    ? `HDBSCAN · UMAP ${activeLens.method.umapDimensions}D`
+                    ? activeLens.method.clusteringSpace === 'display2d'
+                      ? 'HDBSCAN · display UMAP 2D'
+                      : `HDBSCAN · UMAP ${activeLens.method.umapDimensions}D`
                     : activeLens?.algorithm === 'kmeans'
                       ? `K-means · PCA ${activeLens.method.pcaDimensions}D`
                       : 'Clustering lens'}

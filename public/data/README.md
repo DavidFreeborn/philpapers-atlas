@@ -14,4 +14,6 @@ The application does not refit PCA, UMAP, HDBSCAN, or k-means.
 Regenerate with `scripts/build-map-data.py`; its source directory must contain
 the seven saved inputs named in that script. Regenerate the clustering lenses with
 `scripts/build-lenses-data.py` and a source directory containing Prajakta's saved
-label arrays, reviewed names, TF-IDF terms, and metric tables.
+label arrays, reviewed names, TF-IDF terms, and metric tables. The additional
+display-space HDBSCAN labels and scan metrics are stored under `analysis/` and
+can be reproduced with `scripts/scan-hdbscan-2d.py`.

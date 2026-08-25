@@ -23,7 +23,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      # The lockfile contains platform-specific optional binaries for the original
+      # Windows/Cloudflare build; npm resolves the Linux variant on the runner.
+      - run: npm install --no-audit --no-fund
       - run: npm run build:pages
       - uses: actions/configure-pages@v5
         with:

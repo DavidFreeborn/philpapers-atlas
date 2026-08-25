@@ -159,34 +159,30 @@ function formatDecimal(value: number | undefined, digits = 3): string {
   return value === undefined ? '—' : value.toFixed(digits);
 }
 
-function MethodContent({ lens, catalog }: { lens: Lens; catalog: LensCatalog }) {
+function MethodContent({ lens }: { lens: Lens }) {
   const method = lens.method;
   return (
     <>
-      <p>
-        All papers use the same 768-dimensional SPECTER embeddings and the same fixed two-dimensional
-        display. Switching lenses changes assignments and colour, not position.
-      </p>
-      {lens.algorithm === 'hdbscan' ? (
-        <p>
-          For this lens, PCA reduces the embeddings to {method.pcaDimensions} dimensions and UMAP reduces
-          them to {method.umapDimensions} dimensions (cosine distance, 15 neighbours, minimum distance 0).
-          HDBSCAN is then fitted with a minimum cluster size of {method.minClusterSize} and minimum samples
-          of {method.minSamples}.
-        </p>
-      ) : (
-        <p>
-          PCA reduces the embeddings to {method.pcaDimensions} dimensions. K-means then partitions that
-          space into <i>k</i> = {method.k} clusters. Every paper is assigned, so this lens gives a broad
-          partition rather than identifying noise.
-        </p>
-      )}
+      <p className="method-heading">Parameters</p>
+      <dl className="method-table">
+        <div><dt>Input</dt><dd>SPECTER embeddings · 768D</dd></div>
+        <div><dt>PCA</dt><dd>{method.pcaDimensions}D</dd></div>
+        {lens.algorithm === 'hdbscan' ? (
+          <>
+            <div><dt>UMAP</dt><dd>{method.umapDimensions}D · cosine · 15 neighbours · min. distance 0</dd></div>
+            <div><dt>HDBSCAN</dt><dd>min. cluster size {method.minClusterSize} · min. samples {method.minSamples}</dd></div>
+          </>
+        ) : (
+          <div><dt>K-means</dt><dd><i>k</i> = {method.k}</dd></div>
+        )}
+      </dl>
+      <p className="method-heading metrics-heading">Metrics</p>
       <dl className="method-metrics">
         {lens.algorithm === 'hdbscan' ? (
           <>
             <div title="Density-based cluster validity; higher is better."><dt>Relative validity (DBCV)</dt><dd>{formatDecimal(lens.metrics.relativeValidity)}</dd></div>
             <div title="Mean persistence of the fitted clusters; higher indicates greater stability."><dt>Mean cluster persistence</dt><dd>{formatDecimal(lens.metrics.meanPersistence)}</dd></div>
-            <div title="Cluster persistence weighted by the share of papers assigned."><dt>Stability × coverage</dt><dd>{formatDecimal(lens.metrics.stabilityWeightedCoverage)}</dd></div>
+            <div title="Mean cluster persistence weighted by the proportion of papers assigned; higher is better."><dt>Persistence-weighted coverage</dt><dd>{formatDecimal(lens.metrics.stabilityWeightedCoverage)}</dd></div>
           </>
         ) : (
           <>
@@ -196,28 +192,22 @@ function MethodContent({ lens, catalog }: { lens: Lens; catalog: LensCatalog }) 
           </>
         )}
       </dl>
-      <p className="projection-note">
-        The display itself is a separate 2D UMAP ({catalog.projection.nNeighbors} neighbours; minimum
-        distance {catalog.projection.minDist}). It is a guide to neighbourhoods, not a measurement of
-        cluster shape or separation. Metrics from HDBSCAN and k-means are not directly comparable.
-      </p>
     </>
   );
 }
 
-function MethodSummary({ lens, catalog, collapsed }: { lens: Lens; catalog: LensCatalog; collapsed: boolean }) {
+function MethodSummary({ lens, collapsed }: { lens: Lens; collapsed: boolean }) {
   if (collapsed) {
     return (
       <details className="method-summary">
-        <summary>Lens method and metrics</summary>
-        <MethodContent lens={lens} catalog={catalog} />
+        <summary>Parameters and metrics</summary>
+        <MethodContent lens={lens} />
       </details>
     );
   }
   return (
     <section className="method-summary method-summary-open">
-      <p className="eyebrow">Lens method and metrics</p>
-      <MethodContent lens={lens} catalog={catalog} />
+      <MethodContent lens={lens} />
     </section>
   );
 }
@@ -942,10 +932,10 @@ export default function Atlas() {
 
       <section className="atlas-workspace">
         <aside className={`cluster-panel ${showLegend ? 'panel-open' : ''}`}>
+          <p className="corpus-stat"><strong>69,400</strong> English-language papers</p>
           <div className="lens-controls">
             <div className="lens-control-heading">
               <label htmlFor="lens-select">Clustering lens</label>
-              {activeLens?.preferred && <span>Preferred</span>}
             </div>
             <select
               id="lens-select"
@@ -956,7 +946,7 @@ export default function Atlas() {
               <optgroup label="HDBSCAN lenses">
                 {lensCatalog?.lenses.filter((lens) => lens.algorithm === 'hdbscan').map((lens) => (
                   <option key={lens.id} value={lens.id}>
-                    {lens.preferred ? `Preferred · ${lens.optionLabel}` : lens.optionLabel}
+                    {lens.preferred ? `${lens.optionLabel} (selected)` : lens.optionLabel}
                   </option>
                 ))}
               </optgroup>
@@ -966,11 +956,6 @@ export default function Atlas() {
                 ))}
               </optgroup>
             </select>
-            <p className="corpus-stat"><strong>69,400</strong> English-language papers</p>
-            <p className="lens-stats">
-              <span><strong>{activeLens?.clusterCount ?? '—'}</strong> clusters</span>
-              <span><strong>{activeLens ? `${activeLens.noisePct.toFixed(1)}%` : '—'}</strong> unassigned</span>
-            </p>
             {lensLoadingId && <p className="lens-message">Loading lens…</p>}
             {lensError && <p className="lens-message lens-error">{lensError}</p>}
           </div>
@@ -1003,7 +988,7 @@ export default function Atlas() {
             <label className="noise-toggle">
               <input type="checkbox" checked={showNoise} onChange={(event) => setShowNoise(event.target.checked)} />
               <span />
-              Show {formatNumber(activeLens.noiseCount)} unclustered papers
+              Show unclustered papers
             </label>
           ) : (
             <p className="assignment-note">All papers are assigned in this lens.</p>
@@ -1178,19 +1163,26 @@ export default function Atlas() {
               </article>
             ) : (
               <article className="atlas-overview">
-                <p className="eyebrow">Current lens</p>
-                <h3>{activeLens?.name ?? 'Clustering lens'}</h3>
-                <p>
-                  Colour shows the assignments from this lens. The papers remain on the same fixed projection,
-                  so differences between lenses can be compared directly.
-                </p>
+                <h3>
+                  {activeLens?.algorithm === 'hdbscan'
+                    ? `HDBSCAN · UMAP ${activeLens.method.umapDimensions}D`
+                    : activeLens?.algorithm === 'kmeans'
+                      ? `K-means · PCA ${activeLens.method.pcaDimensions}D`
+                      : 'Clustering lens'}
+                </h3>
+                {activeLens && (
+                  <p className="lens-outcome">
+                    <strong>{activeLens.clusterCount}</strong> clusters
+                    <span>·</span>
+                    <strong>{activeLens.noisePct.toFixed(1)}%</strong> unassigned
+                  </p>
+                )}
               </article>
             )}
           </div>
           {activeLens && lensCatalog && (
             <MethodSummary
               lens={activeLens}
-              catalog={lensCatalog}
               collapsed={selectedIndex !== null || activeCluster !== null}
             />
           )}

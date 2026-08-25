@@ -204,7 +204,7 @@ def build(source: Path, public_data: Path) -> None:
         {
             "id": "kmeans_pca100_k10",
             "name": "K-means · 10 clusters",
-            "optionLabel": "10 broad clusters · PCA 100D",
+            "optionLabel": "10 clusters · PCA 100D",
             "algorithm": "kmeans",
             "preferred": False,
             "labelsFile": "data/lenses/labels/kmeans_pca100_k10.bin",

@@ -38,10 +38,18 @@ type View = { zoom: number; panX: number; panY: number };
 const GRID_SIZE = 128;
 const DETAIL_CHUNK_SIZE = 500;
 
+const CLUSTER_COLORS = [
+  '#82aa3a', '#b262c2', '#5ab22a', '#2aaac2', '#009e73', '#e292ea', '#e26aba',
+  '#aa822a', '#ea4292', '#ea6a8a', '#2a8ae2', '#d55e00', '#2ada82', '#ea523a',
+  '#baaa6a', '#7a8a52', '#2a9a92', '#eab28a', '#8c72cb', '#e4d34f', '#5a7aea',
+  '#5ad2d2', '#aaca82', '#d27a42', '#7a8ac2', '#92922a', '#eab262', '#a2c22a',
+  '#56b4e9', '#da52ca', '#ba6a7a', '#ea425a', '#cc79a7', '#e69f00', '#c2c262',
+  '#5a9242', '#2aaa4a', '#aa6aea', '#7ad2a2', '#a27a4a', '#82d272', '#ea8a82',
+] as const;
+
 function clusterColor(id: number): string {
-  if (id < 0) return '#7f898b';
-  const hue = (id * 137.508 + 21) % 360;
-  return `hsl(${hue.toFixed(1)} 70% 64%)`;
+  if (id < 0) return '#c7cbd1';
+  return CLUSTER_COLORS[id % CLUSTER_COLORS.length];
 }
 
 function formatNumber(value: number): string {
@@ -176,7 +184,7 @@ export default function Atlas() {
     const { minX, maxX, minY, maxY } = mapData.bounds;
     const spanX = maxX - minX || 1;
     const spanY = maxY - minY || 1;
-    const baseScale = Math.min((width * 0.88) / spanX, (height * 0.86) / spanY);
+    const baseScale = Math.min((width * 0.9) / spanX, (height * 0.9) / spanY);
     return {
       width,
       height,
@@ -227,14 +235,15 @@ export default function Atlas() {
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, metrics.width, metrics.height);
 
-    const pointSize = clamp(1.1 + Math.log2(view.zoom + 1) * 0.55, 1.15, 4.4);
+    const pointRadius = clamp(0.72 + Math.log2(view.zoom + 1) * 0.28, 0.95, 2.7);
     const orderedGroups = [...pointGroups.entries()].sort(([left], [right]) => left - right);
 
     for (const [clusterId, indices] of orderedGroups) {
       if (clusterId < 0 && !showNoise) continue;
       const isActive = activeCluster === null || activeCluster === clusterId;
-      context.globalAlpha = clusterId < 0 ? (isActive ? 0.18 : 0.035) : isActive ? 0.78 : 0.055;
+      context.globalAlpha = clusterId < 0 ? (isActive ? 0.5 : 0.09) : isActive ? 0.9 : 0.1;
       context.fillStyle = clusterColor(clusterId);
+      context.beginPath();
       for (const index of indices) {
         const point = mapData.points[index];
         const screenX =
@@ -252,8 +261,10 @@ export default function Atlas() {
           screenY > metrics.height + 4
         )
           continue;
-        context.fillRect(screenX - pointSize / 2, screenY - pointSize / 2, pointSize, pointSize);
+        context.moveTo(screenX + pointRadius, screenY);
+        context.arc(screenX, screenY, pointRadius, 0, Math.PI * 2);
       }
+      context.fill();
     }
 
     const emphasized = selectedIndex ?? hoveredIndex;
@@ -467,7 +478,6 @@ export default function Atlas() {
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
           <span>
             <strong>PhilPapers Atlas</strong>
-            <small>Candidate map · 42 clusters</small>
           </span>
         </button>
 
@@ -477,7 +487,7 @@ export default function Atlas() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={searchData ? 'Search title, author, or paper ID' : 'Preparing paper search…'}
+              placeholder={searchData ? 'Search title or author' : 'Preparing paper search…'}
               disabled={!searchData}
               aria-label="Search papers"
             />
@@ -497,7 +507,7 @@ export default function Atlas() {
                       aria-selected={selectedIndex === index}
                     >
                       <strong>{row[1]}</strong>
-                      <span>{[row[2], row[3]].filter(Boolean).join(' · ') || row[0]}</span>
+                      <span>{[row[2], row[3]].filter(Boolean).join(' · ') || 'Metadata unavailable'}</span>
                     </button>
                   );
                 })
@@ -517,10 +527,7 @@ export default function Atlas() {
       <section className="atlas-workspace">
         <aside className={`cluster-panel ${showLegend ? 'panel-open' : ''}`}>
           <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Explore by topic</p>
-              <h2>Clusters</h2>
-            </div>
+            <h2>Clusters <span>{clusterData?.clusters.length ?? '—'}</span></h2>
             <button className="panel-close" onClick={() => setShowLegend(false)} aria-label="Close cluster panel">×</button>
           </div>
           <button
@@ -528,7 +535,7 @@ export default function Atlas() {
             onClick={() => focusCluster(null)}
           >
             <span className="cluster-swatch constellation-swatch" />
-            <span><strong>All philosophical areas</strong><small>{mapData ? formatNumber(mapData.count) : '—'} papers</small></span>
+            <span><strong>All papers</strong></span>
           </button>
           <div className="cluster-list">
             {clusterData?.clusters
@@ -540,9 +547,10 @@ export default function Atlas() {
                   className={`cluster-row ${activeCluster === cluster.id ? 'active' : ''}`}
                   onClick={() => focusCluster(cluster.id)}
                   aria-pressed={activeCluster === cluster.id}
+                  title={`${cluster.label} — ${formatNumber(cluster.count)} papers`}
                 >
                   <span className="cluster-swatch" style={{ background: clusterColor(cluster.id) }} />
-                  <span><strong>{cluster.label}</strong><small>{formatNumber(cluster.count)} papers</small></span>
+                  <span><strong>{cluster.label}</strong></span>
                 </button>
               ))}
           </div>
@@ -633,28 +641,16 @@ export default function Atlas() {
             </div>
           )}
 
-          <div className="map-caption">
-            <p className="eyebrow">Two-dimensional UMAP</p>
-            <span>{activeCluster === null ? 'All papers' : clusterById.get(activeCluster)?.label}</span>
-          </div>
-
           <div className="map-controls" aria-label="Map controls">
             <button onClick={() => setView((current) => ({ ...current, zoom: clamp(current.zoom * 1.45, 0.65, 28) }))} aria-label="Zoom in">+</button>
             <button onClick={() => setView((current) => ({ ...current, zoom: clamp(current.zoom / 1.45, 0.65, 28) }))} aria-label="Zoom out">−</button>
             <button className="reset-control" onClick={() => focusCluster(null)}>Reset</button>
           </div>
-          <div className="zoom-readout">{Math.round(view.zoom * 100)}%</div>
           <button className="mobile-inspector-button" onClick={() => setShowInspector(true)}>Details</button>
         </div>
 
         <aside className={`paper-panel ${showInspector ? 'panel-open' : ''}`}>
-          <div className="panel-heading inspector-heading">
-            <div>
-              <p className="eyebrow">{selectedDetail ? 'Selected paper' : activeCluster !== null ? 'Selected cluster' : 'About this map'}</p>
-              <h2>{selectedDetail ? 'Paper details' : activeCluster !== null ? 'Cluster profile' : 'A map of philosophy'}</h2>
-            </div>
-            <button className="panel-close" onClick={() => setShowInspector(false)} aria-label="Close details panel">×</button>
-          </div>
+          <button className="panel-close inspector-close" onClick={() => setShowInspector(false)} aria-label="Close details panel">×</button>
 
           {selectedIndex !== null ? (
             detailLoading ? (
@@ -669,7 +665,6 @@ export default function Atlas() {
                 <p className="paper-authors">{selectedDetail[2] || 'Authorship not listed'}</p>
                 <dl className="paper-meta">
                   <div><dt>Date</dt><dd>{selectedDetail[3] || 'Not listed'}</dd></div>
-                  <div><dt>Paper ID</dt><dd>{selectedDetail[0]}</dd></div>
                 </dl>
                 <section className="abstract-section">
                   <p className="eyebrow">Abstract</p>
@@ -687,34 +682,27 @@ export default function Atlas() {
             <article className="cluster-detail">
               <div className="cluster-orb" style={{ background: clusterColor(selectedCluster.id) }} />
               <h3>{selectedCluster.label}</h3>
-              <p><strong>{formatNumber(selectedCluster.count)}</strong> papers in this candidate clustering.</p>
+              <p><strong>{formatNumber(selectedCluster.count)}</strong> papers assigned to this cluster.</p>
               <section>
                 <p className="eyebrow">Characteristic terms</p>
                 <div className="term-list">
                   {selectedCluster.terms.map((term) => <span key={term}>{term}</span>)}
                 </div>
               </section>
-              <p className="panel-note">Select any point to read its title, authorship, date, and abstract.</p>
               <button className="secondary-link" onClick={() => focusCluster(null)}>Return to the full atlas</button>
             </article>
           ) : (
             <article className="atlas-overview">
-              <div className="overview-stat-grid">
-                <div><strong>69,400</strong><span>English-language papers</span></div>
-                <div><strong>42</strong><span>HDBSCAN clusters</span></div>
-                <div><strong>48,119</strong><span>Clustered papers</span></div>
-                <div><strong>30.7%</strong><span>Retained as noise</span></div>
-              </div>
+              <dl className="overview-stats">
+                <div><dt>English-language papers</dt><dd>69,400</dd></div>
+                <div><dt>HDBSCAN clusters</dt><dd>42</dd></div>
+                <div><dt>Clustered papers</dt><dd>48,119</dd></div>
+                <div><dt>Unassigned as noise</dt><dd>30.7%</dd></div>
+              </dl>
               <p>
-                Each point is a paper. Position comes from the saved two-dimensional UMAP of the
-                30-dimensional clustering representation; colour indicates Prajakta’s reviewed cluster label.
+                Each point represents one paper. Position comes from the saved projection; colour indicates
+                HDBSCAN cluster assignment.
               </p>
-              <div className="instruction-list">
-                <span><b>01</b> Drag to travel through the literature.</span>
-                <span><b>02</b> Scroll to zoom into dense regions.</span>
-                <span><b>03</b> Select a paper to read its metadata.</span>
-              </div>
-              <p className="panel-note">This is the provisional 42-cluster candidate and can be updated without rebuilding the interface.</p>
             </article>
           )}
         </aside>
@@ -724,21 +712,24 @@ export default function Atlas() {
         <div className="method-backdrop" role="dialog" aria-modal="true" aria-labelledby="method-title" onMouseDown={() => setShowMethod(false)}>
           <article className="method-card" onMouseDown={(event) => event.stopPropagation()}>
             <button className="method-close" onClick={() => setShowMethod(false)} aria-label="Close method description">×</button>
-            <p className="eyebrow">How to read the map</p>
-            <h2 id="method-title">A projection, not a flat taxonomy</h2>
+            <h2 id="method-title">Methods</h2>
             <p>
-              The source papers were embedded with AllenAI SPECTER, reduced to 100 dimensions with PCA,
-              then to 30 dimensions with UMAP. HDBSCAN identified the displayed clusters in that 30-dimensional space.
+              Each paper is represented by a 768-dimensional SPECTER embedding. The embeddings were reduced
+              to 100 dimensions by PCA, then to 30 dimensions by UMAP using cosine distance, 15 neighbours and
+              a minimum distance of 0. We then fitted HDBSCAN in this 30-dimensional space, setting the minimum
+              cluster size to 200 and the minimum number of samples to 15. This produced 42 clusters and left
+              21,281 papers unassigned.
             </p>
-            <div className="pipeline">
-              <span><b>768D</b>SPECTER</span><i>→</i><span><b>100D</b>PCA</span><i>→</i><span><b>30D</b>UMAP</span><i>→</i><span><b>42</b>clusters</span><i>→</i><span><b>2D</b>display</span>
-            </div>
             <p>
-              The final two-dimensional UMAP is a visual aid. Local neighbourhoods are informative, but distances and
-              apparent boundaries are distorted by projection. Grey papers were labelled as noise by HDBSCAN rather than
-              forced into a topic.
+              The displayed coordinates come from a separate two-dimensional UMAP of the 30-dimensional representation,
+              using 15 neighbours and a minimum distance of 0.1. The projection is intended for visual exploration.
+              Nearby points are often semantically related, but the map does not preserve every high-dimensional distance,
+              cluster shape or boundary relation.
             </p>
-            <p className="method-caveat">Cluster membership strengths were not included in the saved preferred-run export, so this version reports the categorical assignment without inventing a confidence value.</p>
+            <p>
+              Grey points are papers that HDBSCAN treated as noise; they were not assigned to a cluster. The saved export
+              contains categorical assignments but not membership probabilities, so confidence scores are not shown.
+            </p>
           </article>
         </div>
       )}

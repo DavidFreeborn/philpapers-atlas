@@ -12,7 +12,7 @@ import type { MouseEvent } from 'react';
 
 type PointRow = [number, number, number, number];
 type SearchRow = [string, string, string, string];
-type DetailRow = [string, string, string, string, string, string, string];
+type DetailRow = [string, string];
 
 type MapData = {
   version: string;
@@ -35,8 +35,29 @@ type ClusterData = {
 
 type View = { zoom: number; panX: number; panY: number };
 
+type WebGLRenderer = {
+  gl: WebGL2RenderingContext;
+  program: WebGLProgram;
+  vertexArray: WebGLVertexArrayObject;
+  positionBuffer: WebGLBuffer;
+  colorBuffer: WebGLBuffer;
+  clusterBuffer: WebGLBuffer;
+  pointCount: number;
+  uniforms: {
+    center: WebGLUniformLocation;
+    baseScale: WebGLUniformLocation;
+    zoom: WebGLUniformLocation;
+    pan: WebGLUniformLocation;
+    viewport: WebGLUniformLocation;
+    dpr: WebGLUniformLocation;
+    pointSize: WebGLUniformLocation;
+    activeCluster: WebGLUniformLocation;
+    showNoise: WebGLUniformLocation;
+  };
+};
+
 const GRID_SIZE = 128;
-const DETAIL_CHUNK_SIZE = 500;
+const DETAIL_CHUNK_SIZE = 200;
 
 const CLUSTER_COLORS = [
   '#82aa3a', '#b262c2', '#5ab22a', '#2aaac2', '#009e73', '#e292ea', '#e26aba',
@@ -50,6 +71,37 @@ const CLUSTER_COLORS = [
 function clusterColor(id: number): string {
   if (id < 0) return '#c7cbd1';
   return CLUSTER_COLORS[id % CLUSTER_COLORS.length];
+}
+
+function colorChannels(hex: string): [number, number, number] {
+  return [
+    Number.parseInt(hex.slice(1, 3), 16) / 255,
+    Number.parseInt(hex.slice(3, 5), 16) / 255,
+    Number.parseInt(hex.slice(5, 7), 16) / 255,
+  ];
+}
+
+function compileShader(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
+  const shader = gl.createShader(type);
+  if (!shader) throw new Error('The graphics renderer could not be created.');
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    const message = gl.getShaderInfoLog(shader) || 'Unknown graphics error';
+    gl.deleteShader(shader);
+    throw new Error(`The graphics renderer could not be compiled: ${message}`);
+  }
+  return shader;
+}
+
+function requiredUniform(
+  gl: WebGL2RenderingContext,
+  program: WebGLProgram,
+  name: string,
+): WebGLUniformLocation {
+  const location = gl.getUniformLocation(program, name);
+  if (!location) throw new Error(`The graphics renderer is missing ${name}.`);
+  return location;
 }
 
 function formatNumber(value: number): string {
@@ -87,20 +139,25 @@ export default function Atlas() {
     moved: boolean;
   } | null>(null);
   const spatialRef = useRef<number[][]>([]);
+  const webglRef = useRef<WebGLRenderer | null>(null);
   const detailCacheRef = useRef<Map<number, DetailRow[]>>(new Map());
+  const detailPromiseRef = useRef<Map<number, Promise<DetailRow[]>>>(new Map());
 
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [clusterData, setClusterData] = useState<ClusterData | null>(null);
   const [searchData, setSearchData] = useState<SearchRow[] | null>(null);
   const [loadError, setLoadError] = useState('');
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<View>({ zoom: 1, panX: 0, panY: 0 });
   const [activeCluster, setActiveCluster] = useState<number | null>(null);
   const [showNoise, setShowNoise] = useState(true);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [selectedDetail, setSelectedDetail] = useState<DetailRow | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [selectedSupplement, setSelectedSupplement] = useState<{
+    index: number;
+    row: DetailRow | null;
+  } | null>(null);
   const [query, setQuery] = useState('');
   const [showMethod, setShowMethod] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
@@ -110,11 +167,11 @@ export default function Atlas() {
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      fetch('/data/map.json').then((response) => {
+      fetch('data/map.json').then((response) => {
         if (!response.ok) throw new Error('The saved map could not be loaded.');
         return response.json() as Promise<MapData>;
       }),
-      fetch('/data/clusters.json').then((response) => {
+      fetch('data/clusters.json').then((response) => {
         if (!response.ok) throw new Error('The cluster descriptions could not be loaded.');
         return response.json() as Promise<ClusterData>;
       }),
@@ -128,7 +185,7 @@ export default function Atlas() {
         if (!cancelled) setLoadError(error.message);
       });
 
-    fetch('/data/search.json')
+    fetch('data/search.json')
       .then((response) => {
         if (!response.ok) throw new Error('Search index unavailable');
         return response.json() as Promise<SearchRow[]>;
@@ -177,10 +234,8 @@ export default function Atlas() {
   }, [mapData]);
 
   const getMetrics = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !mapData) return null;
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
+    if (!mapData || viewport.width <= 0 || viewport.height <= 0) return null;
+    const { width, height } = viewport;
     const { minX, maxX, minY, maxY } = mapData.bounds;
     const spanX = maxX - minX || 1;
     const spanY = maxY - minY || 1;
@@ -198,7 +253,7 @@ export default function Atlas() {
       centerY: (minY + maxY) / 2,
       baseScale,
     };
-  }, [mapData]);
+  }, [mapData, viewport]);
 
   const toScreen = useCallback(
     (x: number, y: number, currentView = view) => {
@@ -220,70 +275,200 @@ export default function Atlas() {
 
   const drawMap = useCallback(() => {
     const canvas = canvasRef.current;
+    const renderer = webglRef.current;
     const metrics = getMetrics();
-    if (!canvas || !metrics || !mapData) return;
+    if (!canvas || !renderer || !metrics) return;
 
+    const { gl, uniforms } = renderer;
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
-    const targetWidth = Math.round(metrics.width * ratio);
-    const targetHeight = Math.round(metrics.height * ratio);
+    const targetWidth = Math.max(1, Math.round(metrics.width * ratio));
+    const targetHeight = Math.max(1, Math.round(metrics.height * ratio));
     if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
       canvas.width = targetWidth;
       canvas.height = targetHeight;
     }
-    const context = canvas.getContext('2d');
-    if (!context) return;
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    context.clearRect(0, 0, metrics.width, metrics.height);
 
-    const pointRadius = clamp(0.72 + Math.log2(view.zoom + 1) * 0.28, 0.95, 2.7);
-    const orderedGroups = [...pointGroups.entries()].sort(([left], [right]) => left - right);
+    gl.viewport(0, 0, targetWidth, targetHeight);
+    gl.clearColor(18 / 255, 18 / 255, 26 / 255, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(renderer.program);
+    gl.bindVertexArray(renderer.vertexArray);
+    gl.uniform2f(uniforms.center, metrics.centerX, metrics.centerY);
+    gl.uniform1f(uniforms.baseScale, metrics.baseScale);
+    gl.uniform1f(uniforms.zoom, view.zoom);
+    gl.uniform2f(uniforms.pan, view.panX, view.panY);
+    gl.uniform2f(uniforms.viewport, metrics.width, metrics.height);
+    gl.uniform1f(uniforms.dpr, ratio);
+    gl.uniform1f(uniforms.pointSize, clamp(1.75 + Math.log2(view.zoom + 1) * 0.72, 2.35, 7));
+    gl.uniform1f(uniforms.activeCluster, activeCluster ?? -2);
+    gl.uniform1f(uniforms.showNoise, showNoise ? 1 : 0);
+    gl.drawArrays(gl.POINTS, 0, renderer.pointCount);
+    gl.bindVertexArray(null);
+  }, [activeCluster, getMetrics, showNoise, view]);
 
-    for (const [clusterId, indices] of orderedGroups) {
-      if (clusterId < 0 && !showNoise) continue;
-      const isActive = activeCluster === null || activeCluster === clusterId;
-      context.globalAlpha = clusterId < 0 ? (isActive ? 0.5 : 0.09) : isActive ? 0.9 : 0.1;
-      context.fillStyle = clusterColor(clusterId);
-      context.beginPath();
-      for (const index of indices) {
-        const point = mapData.points[index];
-        const screenX =
-          (point[0] - metrics.centerX) * metrics.baseScale * view.zoom +
-          metrics.width / 2 +
-          view.panX;
-        const screenY =
-          -(point[1] - metrics.centerY) * metrics.baseScale * view.zoom +
-          metrics.height / 2 +
-          view.panY;
-        if (
-          screenX < -4 ||
-          screenY < -4 ||
-          screenX > metrics.width + 4 ||
-          screenY > metrics.height + 4
-        )
-          continue;
-        context.moveTo(screenX + pointRadius, screenY);
-        context.arc(screenX, screenY, pointRadius, 0, Math.PI * 2);
-      }
-      context.fill();
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !mapData) return;
+
+    const gl = canvas.getContext('webgl2', {
+      alpha: false,
+      antialias: false,
+      depth: false,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: false,
+    });
+    if (!gl) {
+      setLoadError('This map requires a browser with WebGL 2 support.');
+      return;
     }
 
-    const emphasized = selectedIndex ?? hoveredIndex;
-    if (emphasized !== null) {
-      const point = mapData.points[emphasized];
-      if (point) {
-        const position = toScreen(point[0], point[1]);
-        context.globalAlpha = 1;
-        context.beginPath();
-        context.arc(position.x, position.y, selectedIndex === emphasized ? 7 : 5, 0, Math.PI * 2);
-        context.fillStyle = clusterColor(point[2]);
-        context.fill();
-        context.lineWidth = 2;
-        context.strokeStyle = '#ffffff';
-        context.stroke();
+    try {
+      const vertexShader = compileShader(
+        gl,
+        gl.VERTEX_SHADER,
+        `#version 300 es
+        precision highp float;
+        layout(location = 0) in vec2 aPosition;
+        layout(location = 1) in vec3 aColor;
+        layout(location = 2) in float aCluster;
+        uniform vec2 uCenter;
+        uniform float uBaseScale;
+        uniform float uZoom;
+        uniform vec2 uPan;
+        uniform vec2 uViewport;
+        uniform float uDpr;
+        uniform float uPointSize;
+        uniform float uActiveCluster;
+        uniform float uShowNoise;
+        out vec3 vColor;
+        out float vAlpha;
+
+        void main() {
+          bool allClusters = uActiveCluster < -1.5;
+          bool isNoise = aCluster < -0.5;
+          if (isNoise) {
+            vAlpha = uShowNoise > 0.5 ? (allClusters ? 0.50 : 0.085) : 0.0;
+          } else {
+            vAlpha = allClusters || abs(aCluster - uActiveCluster) < 0.1 ? 0.92 : 0.085;
+          }
+          if (vAlpha <= 0.0) {
+            gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
+            gl_PointSize = 0.0;
+            vColor = aColor;
+            return;
+          }
+          float x = (aPosition.x - uCenter.x) * uBaseScale * uZoom + uViewport.x * 0.5 + uPan.x;
+          float y = -(aPosition.y - uCenter.y) * uBaseScale * uZoom + uViewport.y * 0.5 + uPan.y;
+          gl_Position = vec4(x / uViewport.x * 2.0 - 1.0, 1.0 - y / uViewport.y * 2.0, 0.0, 1.0);
+          gl_PointSize = uPointSize * uDpr;
+          vColor = aColor;
+        }`,
+      );
+      const fragmentShader = compileShader(
+        gl,
+        gl.FRAGMENT_SHADER,
+        `#version 300 es
+        precision highp float;
+        in vec3 vColor;
+        in float vAlpha;
+        out vec4 outColor;
+
+        void main() {
+          vec2 point = gl_PointCoord * 2.0 - 1.0;
+          float radius = dot(point, point);
+          if (radius > 1.0) discard;
+          float coverage = 1.0 - smoothstep(0.48, 1.0, radius);
+          outColor = vec4(vColor, vAlpha * coverage);
+        }`,
+      );
+      const program = gl.createProgram();
+      if (!program) throw new Error('The graphics renderer could not be created.');
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+      gl.deleteShader(vertexShader);
+      gl.deleteShader(fragmentShader);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        const message = gl.getProgramInfoLog(program) || 'Unknown graphics error';
+        gl.deleteProgram(program);
+        throw new Error(`The graphics renderer could not be linked: ${message}`);
       }
+
+      const positions = new Float32Array(mapData.points.length * 2);
+      const colors = new Float32Array(mapData.points.length * 3);
+      const clusters = new Float32Array(mapData.points.length);
+      mapData.points.forEach((point, index) => {
+        positions[index * 2] = point[0];
+        positions[index * 2 + 1] = point[1];
+        clusters[index] = point[2];
+        const color = colorChannels(clusterColor(point[2]));
+        colors[index * 3] = color[0];
+        colors[index * 3 + 1] = color[1];
+        colors[index * 3 + 2] = color[2];
+      });
+
+      const vertexArray = gl.createVertexArray();
+      const positionBuffer = gl.createBuffer();
+      const colorBuffer = gl.createBuffer();
+      const clusterBuffer = gl.createBuffer();
+      if (!vertexArray || !positionBuffer || !colorBuffer || !clusterBuffer) {
+        throw new Error('The graphics buffers could not be created.');
+      }
+      gl.bindVertexArray(vertexArray);
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, clusterBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, clusters, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(2);
+      gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
+      gl.bindVertexArray(null);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.disable(gl.DEPTH_TEST);
+
+      const renderer: WebGLRenderer = {
+        gl,
+        program,
+        vertexArray,
+        positionBuffer,
+        colorBuffer,
+        clusterBuffer,
+        pointCount: mapData.points.length,
+        uniforms: {
+          center: requiredUniform(gl, program, 'uCenter'),
+          baseScale: requiredUniform(gl, program, 'uBaseScale'),
+          zoom: requiredUniform(gl, program, 'uZoom'),
+          pan: requiredUniform(gl, program, 'uPan'),
+          viewport: requiredUniform(gl, program, 'uViewport'),
+          dpr: requiredUniform(gl, program, 'uDpr'),
+          pointSize: requiredUniform(gl, program, 'uPointSize'),
+          activeCluster: requiredUniform(gl, program, 'uActiveCluster'),
+          showNoise: requiredUniform(gl, program, 'uShowNoise'),
+        },
+      };
+      webglRef.current = renderer;
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'The graphics renderer could not be prepared.');
+      return;
     }
-    context.globalAlpha = 1;
-  }, [activeCluster, getMetrics, hoveredIndex, mapData, pointGroups, selectedIndex, showNoise, toScreen, view]);
+
+    return () => {
+      const renderer = webglRef.current;
+      if (!renderer || renderer.gl !== gl) return;
+      gl.deleteBuffer(renderer.positionBuffer);
+      gl.deleteBuffer(renderer.colorBuffer);
+      gl.deleteBuffer(renderer.clusterBuffer);
+      gl.deleteVertexArray(renderer.vertexArray);
+      gl.deleteProgram(renderer.program);
+      webglRef.current = null;
+    };
+  }, [mapData]);
 
   useEffect(() => {
     if (!mapData) return;
@@ -294,56 +479,86 @@ export default function Atlas() {
   useEffect(() => {
     const shell = mapShellRef.current;
     if (!shell) return;
-    const observer = new ResizeObserver(() => drawMap());
+    const observer = new ResizeObserver(([entry]) => {
+      const width = entry?.contentRect.width ?? shell.clientWidth;
+      const height = entry?.contentRect.height ?? shell.clientHeight;
+      setViewport((current) =>
+        current.width === width && current.height === height ? current : { width, height },
+      );
+    });
     observer.observe(shell);
     return () => observer.disconnect();
-  }, [drawMap]);
+  }, []);
+
+  const loadDetailChunk = useCallback((chunkIndex: number): Promise<DetailRow[]> => {
+    const cached = detailCacheRef.current.get(chunkIndex);
+    if (cached) return Promise.resolve(cached);
+    const pending = detailPromiseRef.current.get(chunkIndex);
+    if (pending) return pending;
+
+    const request = fetch(`data/details/${String(chunkIndex).padStart(3, '0')}.json`)
+      .then((response) => {
+        if (!response.ok) throw new Error('Paper details unavailable');
+        return response.json() as Promise<DetailRow[]>;
+      })
+      .then(
+        (chunk) => {
+          detailCacheRef.current.set(chunkIndex, chunk);
+          detailPromiseRef.current.delete(chunkIndex);
+          return chunk;
+        },
+        (error) => {
+          detailPromiseRef.current.delete(chunkIndex);
+          throw error;
+        },
+      );
+    detailPromiseRef.current.set(chunkIndex, request);
+    return request;
+  }, []);
+
+  useEffect(() => {
+    if (hoveredIndex === null) return;
+    const chunkIndex = Math.floor(hoveredIndex / DETAIL_CHUNK_SIZE);
+    const timer = window.setTimeout(() => {
+      void loadDetailChunk(chunkIndex).catch(() => undefined);
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [hoveredIndex, loadDetailChunk]);
 
   useEffect(() => {
     if (selectedIndex === null) return;
     let cancelled = false;
     const chunkIndex = Math.floor(selectedIndex / DETAIL_CHUNK_SIZE);
-    const cached = detailCacheRef.current.get(chunkIndex);
-    const selectFromChunk = (chunk: DetailRow[]) => {
-      if (!cancelled) {
-        setSelectedDetail(chunk[selectedIndex % DETAIL_CHUNK_SIZE] ?? null);
-        setDetailLoading(false);
-      }
-    };
-    if (cached) {
-      selectFromChunk(cached);
-      return;
-    }
-    setDetailLoading(true);
-    fetch(`/data/details/${String(chunkIndex).padStart(3, '0')}.json`)
-      .then((response) => response.json() as Promise<DetailRow[]>)
+    loadDetailChunk(chunkIndex)
       .then((chunk) => {
-        detailCacheRef.current.set(chunkIndex, chunk);
-        selectFromChunk(chunk);
+        if (!cancelled) {
+          setSelectedSupplement({
+            index: selectedIndex,
+            row: chunk[selectedIndex % DETAIL_CHUNK_SIZE] ?? null,
+          });
+        }
       })
       .catch(() => {
-        if (!cancelled) setDetailLoading(false);
+        if (!cancelled) setSelectedSupplement({ index: selectedIndex, row: null });
       });
     return () => {
       cancelled = true;
     };
-  }, [selectedIndex]);
+  }, [loadDetailChunk, selectedIndex]);
+
+  const searchableRows = useMemo(
+    () => searchData?.map((row) => `${row[0]}\n${row[1]}`.toLocaleLowerCase()) ?? null,
+    [searchData],
+  );
 
   const searchResults = useMemo(() => {
-    if (!searchData || deferredQuery.length < 2) return [];
+    if (!searchData || !searchableRows || deferredQuery.length < 2) return [];
     const results: number[] = [];
     for (let index = 0; index < searchData.length && results.length < 8; index += 1) {
-      const row = searchData[index];
-      if (
-        row[0].toLowerCase().includes(deferredQuery) ||
-        row[1].toLowerCase().includes(deferredQuery) ||
-        row[2].toLowerCase().includes(deferredQuery)
-      ) {
-        results.push(index);
-      }
+      if (searchableRows[index].includes(deferredQuery)) results.push(index);
     }
     return results;
-  }, [deferredQuery, searchData]);
+  }, [deferredQuery, searchData, searchableRows]);
 
   const pickPoint = useCallback(
     (screenX: number, screenY: number): number | null => {
@@ -457,9 +672,16 @@ export default function Atlas() {
 
   const selectedPoint = selectedIndex === null ? null : mapData?.points[selectedIndex] ?? null;
   const selectedCluster = selectedPoint ? clusterById.get(selectedPoint[2]) : activeCluster === null ? null : clusterById.get(activeCluster);
+  const selectedSearch = selectedIndex === null ? null : searchData?.[selectedIndex] ?? null;
+  const selectedDetail = selectedIndex !== null && selectedSupplement?.index === selectedIndex
+    ? selectedSupplement.row
+    : null;
+  const detailLoading = selectedIndex !== null && selectedSupplement?.index !== selectedIndex;
   const hoveredRow = hoveredIndex === null ? null : searchData?.[hoveredIndex] ?? null;
   const hoveredPoint = hoveredIndex === null ? null : mapData?.points[hoveredIndex] ?? null;
   const hoveredCluster = hoveredPoint ? clusterById.get(hoveredPoint[2]) : null;
+  const selectedMarker = selectedPoint ? toScreen(selectedPoint[0], selectedPoint[1]) : null;
+  const hoveredMarker = hoveredPoint ? toScreen(hoveredPoint[0], hoveredPoint[1]) : null;
 
   if (loadError) {
     return (
@@ -500,14 +722,14 @@ export default function Atlas() {
                   const row = searchData![index];
                   return (
                     <button
-                      key={row[0]}
+                       key={index}
                       data-paper-index={index}
                       onClick={handleSearchResultClick}
                       role="option"
                       aria-selected={selectedIndex === index}
                     >
-                      <strong>{row[1]}</strong>
-                      <span>{[row[2], row[3]].filter(Boolean).join(' · ') || 'Metadata unavailable'}</span>
+                      <strong>{row[0]}</strong>
+                      <span>{[row[1], row[2]].filter(Boolean).join(' · ') || 'Metadata unavailable'}</span>
                     </button>
                   );
                 })
@@ -600,9 +822,14 @@ export default function Atlas() {
             onPointerUp={(event) => {
               const drag = dragRef.current;
               dragRef.current = null;
-              if (drag && !drag.moved && hoveredIndex !== null) {
-                setSelectedIndex(hoveredIndex);
-                setShowInspector(true);
+              if (drag && !drag.moved) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const picked = pickPoint(event.clientX - rect.left, event.clientY - rect.top);
+                if (picked !== null) {
+                  setSelectedIndex(picked);
+                  setHoveredIndex(picked);
+                  setShowInspector(true);
+                }
               }
               event.currentTarget.releasePointerCapture(event.pointerId);
             }}
@@ -631,11 +858,34 @@ export default function Atlas() {
             }}
           />
 
+          {selectedMarker && selectedPoint && (
+            <span
+              className="point-marker selected-marker"
+              style={{
+                left: selectedMarker.x,
+                top: selectedMarker.y,
+                background: clusterColor(selectedPoint[2]),
+              }}
+              aria-hidden="true"
+            />
+          )}
+          {hoveredMarker && hoveredPoint && hoveredIndex !== selectedIndex && (
+            <span
+              className="point-marker hover-marker"
+              style={{
+                left: hoveredMarker.x,
+                top: hoveredMarker.y,
+                background: clusterColor(hoveredPoint[2]),
+              }}
+              aria-hidden="true"
+            />
+          )}
+
           {hoveredIndex !== null && hoveredPoint && (
             <div className="paper-tooltip" style={{ left: hoverPosition.x, top: hoverPosition.y }}>
               <span style={{ background: clusterColor(hoveredPoint[2]) }} />
               <div>
-                <strong>{hoveredRow?.[1] ?? `Paper ${hoveredIndex + 1}`}</strong>
+                <strong>{hoveredRow?.[0] ?? `Paper ${hoveredIndex + 1}`}</strong>
                 <small>{hoveredCluster?.label ?? 'Unclustered'}</small>
               </div>
             </div>
@@ -653,31 +903,39 @@ export default function Atlas() {
           <button className="panel-close inspector-close" onClick={() => setShowInspector(false)} aria-label="Close details panel">×</button>
 
           {selectedIndex !== null ? (
-            detailLoading ? (
-              <div className="detail-loading"><span /><p>Retrieving paper details…</p></div>
-            ) : selectedDetail ? (
-              <article className="paper-detail">
-                <div className="detail-cluster-label">
-                  <span style={{ background: clusterColor(selectedPoint?.[2] ?? -1) }} />
-                  {selectedCluster?.label ?? 'Unclustered'}
-                </div>
-                <h3>{selectedDetail[1]}</h3>
-                <p className="paper-authors">{selectedDetail[2] || 'Authorship not listed'}</p>
-                <dl className="paper-meta">
-                  <div><dt>Date</dt><dd>{selectedDetail[3] || 'Not listed'}</dd></div>
-                </dl>
-                <section className="abstract-section">
-                  <p className="eyebrow">Abstract</p>
-                  <p>{selectedDetail[5] || 'No abstract is available in the current PhilPapers metadata.'}</p>
-                </section>
-                <a className="primary-link" href={selectedDetail[4]} target="_blank" rel="noreferrer">
+            <article className="paper-detail">
+              <div className="detail-cluster-label">
+                <span style={{ background: clusterColor(selectedPoint?.[2] ?? -1) }} />
+                {selectedCluster?.label ?? 'Unclustered'}
+              </div>
+              <h3>{selectedSearch?.[0] ?? 'Paper details'}</h3>
+              <p className="paper-authors">{selectedSearch?.[1] || 'Authorship not listed'}</p>
+              <dl className="paper-meta">
+                <div><dt>Date</dt><dd>{selectedSearch?.[2] || 'Not listed'}</dd></div>
+              </dl>
+              <section className="abstract-section">
+                <p className="eyebrow">Abstract</p>
+                {detailLoading ? (
+                  <div className="abstract-loading" role="status" aria-live="polite">
+                    <span />
+                    <p>Loading abstract…</p>
+                  </div>
+                ) : (
+                  <p>
+                    {selectedDetail?.[0] ||
+                      (selectedSupplement?.row === null
+                        ? 'The abstract could not be loaded.'
+                        : 'No abstract is available in the current PhilPapers metadata.')}
+                  </p>
+                )}
+              </section>
+              {selectedSearch?.[3] && (
+                <a className="primary-link" href={selectedSearch[3]} target="_blank" rel="noreferrer">
                   Open on PhilPapers <span aria-hidden="true">↗</span>
                 </a>
-                <button className="secondary-link" onClick={() => setSelectedIndex(null)}>Back to cluster overview</button>
-              </article>
-            ) : (
-              <p className="empty-detail">Paper metadata could not be retrieved.</p>
-            )
+              )}
+              <button className="secondary-link" onClick={() => setSelectedIndex(null)}>Back to cluster overview</button>
+            </article>
           ) : activeCluster !== null && selectedCluster ? (
             <article className="cluster-detail">
               <div className="cluster-orb" style={{ background: clusterColor(selectedCluster.id) }} />

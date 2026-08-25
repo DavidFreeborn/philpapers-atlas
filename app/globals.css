@@ -1,5 +1,3 @@
-@import 'tailwindcss';
-
 :root {
   --background: #12121a;
   --panel: #191a24;
@@ -11,13 +9,8 @@
   --faint: #666879;
   --accent: #8aa4ff;
   --foreground: var(--ink);
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-geist-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-geist-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 * { box-sizing: border-box; }
@@ -98,8 +91,11 @@ button { color: inherit; }
 .noise-toggle input:checked + span::after { transform: translateX(10px); background: #d8dbe2; }
 
 .map-shell { min-width: 0; min-height: 0; position: relative; overflow: hidden; background: var(--background); }
-.atlas-canvas { width: 100%; height: 100%; display: block; position: relative; cursor: grab; touch-action: none; outline: none; }
+.atlas-canvas { width: 100%; height: 100%; display: block; position: relative; cursor: grab; touch-action: none; outline: none; contain: strict; user-select: none; }
 .atlas-canvas:active { cursor: grabbing; }
+.point-marker { position: absolute; z-index: 8; display: block; border: 2px solid #fff; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); box-shadow: 0 0 0 1px rgba(0, 0, 0, .45); }
+.selected-marker { width: 13px; height: 13px; }
+.hover-marker { width: 9px; height: 9px; }
 .atlas-loader { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: var(--background); }
 .atlas-loader h1 { margin: 7px 0; font-size: clamp(22px, 3vw, 34px); letter-spacing: -.035em; font-weight: 540; }
 .atlas-loader > p:last-child { max-width: 380px; margin: 0; color: var(--muted); font-size: 11px; }
@@ -130,6 +126,9 @@ button { color: inherit; }
 .paper-meta dd { margin: 0; color: #c4c5ce; font-size: 9px; text-align: right; }
 .abstract-section { margin-top: 4px; }
 .abstract-section > p:last-child { margin: 9px 0 0; color: #b9bac4; font-size: 12px; line-height: 1.62; }
+.abstract-loading { min-height: 76px; display: flex; align-items: center; gap: 9px; margin-top: 9px; color: var(--muted); }
+.abstract-loading span { width: 12px; height: 12px; flex: 0 0 auto; border: 1px solid #4d5061; border-top-color: #c5cad8; border-radius: 50%; animation: orbit .7s linear infinite; }
+.abstract-loading p { margin: 0; font-size: 10px; }
 .primary-link { display: flex; justify-content: space-between; align-items: center; margin-top: 23px; padding: 10px 11px; border: 1px solid #4b5168; border-radius: 4px; color: #dfe5ff; font-size: 10px; font-weight: 560; text-decoration: none; }
 .primary-link:hover { background: #252838; }
 .secondary-link { width: 100%; margin-top: 8px; padding: 9px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--muted); font-size: 9px; cursor: pointer; }
@@ -144,10 +143,6 @@ button { color: inherit; }
 .overview-stats dt { color: var(--muted); font-size: 10px; }
 .overview-stats dd { margin: 0; color: #e4e5eb; font: 15px var(--font-geist-mono), monospace; }
 .atlas-overview > p { margin: 0; color: #b2b3be; font-size: 11px; line-height: 1.62; }
-.detail-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 260px; color: var(--muted); font-size: 10px; }
-.detail-loading span { width: 26px; height: 26px; border: 1px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: orbit 1s linear infinite; }
-.empty-detail { color: var(--muted); font-size: 11px; }
-
 .method-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 22px; background: rgba(8,8,13,.82); }
 .method-card { width: min(660px, 100%); position: relative; padding: 30px 32px 25px; border: 1px solid #393b49; border-radius: 6px; background: #1b1c25; box-shadow: 0 24px 70px rgba(0,0,0,.45); }
 .method-card h2 { margin: 0 0 17px; font-size: 20px; font-weight: 570; }

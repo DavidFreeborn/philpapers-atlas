@@ -20,7 +20,7 @@ import numpy as np
 from openpyxl import load_workbook
 
 
-DETAIL_CHUNK_SIZE = 500
+DETAIL_CHUNK_SIZE = 200
 
 
 def clean_text(value: object, limit: int | None = None) -> str:
@@ -185,7 +185,7 @@ def main() -> None:
 
         title = record["title"] or paper_id
         search_records.append(
-            [paper_id, title, record["authors"], record["date"]]
+            [title, record["authors"], record["date"], record["url"]]
         )
         points.append(
             [
@@ -197,11 +197,6 @@ def main() -> None:
         )
         detail_chunk.append(
             [
-                paper_id,
-                title,
-                record["authors"],
-                record["date"],
-                record["url"],
                 record["abstract"],
                 record["subject"],
             ]

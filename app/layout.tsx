@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://philpapers-atlas.dafidius.chatgpt.site'),
+  metadataBase: new URL('https://davidfreeborn.github.io/philpapers-atlas/'),
   title: 'PhilPapers Atlas',
   description:
     'Explore 69,400 philosophy papers through an interactive UMAP of SPECTER embeddings and HDBSCAN clusters.',

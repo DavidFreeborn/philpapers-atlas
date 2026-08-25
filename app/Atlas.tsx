@@ -299,8 +299,7 @@ export default function Atlas() {
     gl.uniform2f(uniforms.pan, view.panX, view.panY);
     gl.uniform2f(uniforms.viewport, metrics.width, metrics.height);
     gl.uniform1f(uniforms.dpr, ratio);
-    const pointDiameter = clamp(0.72 + Math.log2(view.zoom + 1) * 0.28, 0.95, 2.7) * 2;
-    gl.uniform1f(uniforms.pointSize, pointDiameter);
+    gl.uniform1f(uniforms.pointSize, clamp(1.75 + Math.log2(view.zoom + 1) * 0.72, 2.35, 7));
     gl.uniform1f(uniforms.activeCluster, activeCluster ?? -2);
     gl.uniform1f(uniforms.showNoise, showNoise ? 1 : 0);
     gl.drawArrays(gl.POINTS, 0, renderer.pointCount);

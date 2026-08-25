@@ -13,13 +13,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://philpapers-atlas.dafidius.chatgpt.site'),
   title: 'PhilPapers Atlas',
   description:
     'Explore 69,400 philosophy papers through an interactive UMAP of SPECTER embeddings and HDBSCAN clusters.',
+  alternates: { canonical: '/' },
   openGraph: {
     title: 'PhilPapers Atlas',
     description: 'Explore 69,400 philosophy papers in an interactive semantic map.',
     type: 'website',
+    url: '/',
     images: [{ url: '/og.png', width: 1734, height: 900, alt: 'PhilPapers Atlas — Explore 69,400 philosophy papers' }],
   },
   twitter: {

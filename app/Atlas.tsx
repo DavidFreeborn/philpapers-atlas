@@ -26,11 +26,53 @@ type Cluster = {
   label: string;
   count: number;
   terms: string[];
+  color: string;
 };
 
-type ClusterData = {
+type LensMethod = {
+  pcaDimensions: number;
+  umapDimensions?: number;
+  minClusterSize?: number;
+  minSamples?: number;
+  k?: number;
+};
+
+type LensMetrics = {
+  relativeValidity?: number;
+  meanPersistence?: number;
+  stabilityWeightedCoverage?: number;
+  silhouetteCosine?: number;
+  daviesBouldin?: number;
+  calinskiHarabasz?: number;
+};
+
+type Lens = {
+  id: string;
+  name: string;
+  optionLabel: string;
+  algorithm: 'hdbscan' | 'kmeans';
+  preferred: boolean;
+  labelsFile: string;
+  clusterCount: number;
   noiseCount: number;
+  noisePct: number;
+  method: LensMethod;
+  metrics: LensMetrics;
   clusters: Cluster[];
+};
+
+type LensCatalog = {
+  version: string;
+  paperCount: number;
+  defaultLens: string;
+  projection: {
+    sourceLens: string;
+    dimensions: number;
+    nNeighbors: number;
+    minDist: number;
+    metric: string;
+  };
+  lenses: Lens[];
 };
 
 type View = { zoom: number; panX: number; panY: number };
@@ -58,6 +100,7 @@ type WebGLRenderer = {
 
 const GRID_SIZE = 128;
 const DETAIL_CHUNK_SIZE = 200;
+const NOISE_COLOR = '#c7cbd1';
 
 const CLUSTER_COLORS = [
   '#82aa3a', '#b262c2', '#5ab22a', '#2aaac2', '#009e73', '#e292ea', '#e26aba',
@@ -68,9 +111,9 @@ const CLUSTER_COLORS = [
   '#5a9242', '#2aaa4a', '#aa6aea', '#7ad2a2', '#a27a4a', '#82d272', '#ea8a82',
 ] as const;
 
-function clusterColor(id: number): string {
-  if (id < 0) return '#c7cbd1';
-  return CLUSTER_COLORS[id % CLUSTER_COLORS.length];
+function clusterColor(id: number, clusters?: Map<number, Cluster>): string {
+  if (id < 0) return NOISE_COLOR;
+  return clusters?.get(id)?.color ?? CLUSTER_COLORS[id % CLUSTER_COLORS.length];
 }
 
 function colorChannels(hex: string): [number, number, number] {
@@ -112,6 +155,73 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
+function formatDecimal(value: number | undefined, digits = 3): string {
+  return value === undefined ? '—' : value.toFixed(digits);
+}
+
+function MethodContent({ lens, catalog }: { lens: Lens; catalog: LensCatalog }) {
+  const method = lens.method;
+  return (
+    <>
+      <p>
+        All papers use the same 768-dimensional SPECTER embeddings and the same fixed two-dimensional
+        display. Switching lenses changes assignments and colour, not position.
+      </p>
+      {lens.algorithm === 'hdbscan' ? (
+        <p>
+          For this lens, PCA reduces the embeddings to {method.pcaDimensions} dimensions and UMAP reduces
+          them to {method.umapDimensions} dimensions (cosine distance, 15 neighbours, minimum distance 0).
+          HDBSCAN is then fitted with a minimum cluster size of {method.minClusterSize} and minimum samples
+          of {method.minSamples}.
+        </p>
+      ) : (
+        <p>
+          PCA reduces the embeddings to {method.pcaDimensions} dimensions. K-means then partitions that
+          space into <i>k</i> = {method.k} clusters. Every paper is assigned, so this lens gives a broad
+          partition rather than identifying noise.
+        </p>
+      )}
+      <dl className="method-metrics">
+        {lens.algorithm === 'hdbscan' ? (
+          <>
+            <div title="Density-based cluster validity; higher is better."><dt>Relative validity (DBCV)</dt><dd>{formatDecimal(lens.metrics.relativeValidity)}</dd></div>
+            <div title="Mean persistence of the fitted clusters; higher indicates greater stability."><dt>Mean cluster persistence</dt><dd>{formatDecimal(lens.metrics.meanPersistence)}</dd></div>
+            <div title="Cluster persistence weighted by the share of papers assigned."><dt>Stability × coverage</dt><dd>{formatDecimal(lens.metrics.stabilityWeightedCoverage)}</dd></div>
+          </>
+        ) : (
+          <>
+            <div title="Cosine silhouette score in the 100-dimensional PCA space; higher is better."><dt>Silhouette (cosine)</dt><dd>{formatDecimal(lens.metrics.silhouetteCosine)}</dd></div>
+            <div title="Davies–Bouldin index in the clustering space; lower is better."><dt>Davies–Bouldin</dt><dd>{formatDecimal(lens.metrics.daviesBouldin)}</dd></div>
+            <div title="Calinski–Harabasz index in the clustering space; higher is better."><dt>Calinski–Harabasz</dt><dd>{formatDecimal(lens.metrics.calinskiHarabasz, 0)}</dd></div>
+          </>
+        )}
+      </dl>
+      <p className="projection-note">
+        The display itself is a separate 2D UMAP ({catalog.projection.nNeighbors} neighbours; minimum
+        distance {catalog.projection.minDist}). It is a guide to neighbourhoods, not a measurement of
+        cluster shape or separation. Metrics from HDBSCAN and k-means are not directly comparable.
+      </p>
+    </>
+  );
+}
+
+function MethodSummary({ lens, catalog, collapsed }: { lens: Lens; catalog: LensCatalog; collapsed: boolean }) {
+  if (collapsed) {
+    return (
+      <details className="method-summary">
+        <summary>Lens method and metrics</summary>
+        <MethodContent lens={lens} catalog={catalog} />
+      </details>
+    );
+  }
+  return (
+    <section className="method-summary method-summary-open">
+      <p className="eyebrow">Lens method and metrics</p>
+      <MethodContent lens={lens} catalog={catalog} />
+    </section>
+  );
+}
+
 function Loader() {
   return (
     <div className="atlas-loader" role="status" aria-live="polite">
@@ -142,24 +252,28 @@ export default function Atlas() {
   const webglRef = useRef<WebGLRenderer | null>(null);
   const detailCacheRef = useRef<Map<number, DetailRow[]>>(new Map());
   const detailPromiseRef = useRef<Map<number, Promise<DetailRow[]>>>(new Map());
+  const lensLabelCacheRef = useRef<Map<string, Int16Array>>(new Map());
+  const lensRequestRef = useRef(0);
 
   const [mapData, setMapData] = useState<MapData | null>(null);
-  const [clusterData, setClusterData] = useState<ClusterData | null>(null);
+  const [lensCatalog, setLensCatalog] = useState<LensCatalog | null>(null);
+  const [activeLensId, setActiveLensId] = useState('');
+  const [labelState, setLabelState] = useState<{ lensId: string; labels: Int16Array } | null>(null);
+  const [lensLoadingId, setLensLoadingId] = useState<string | null>(null);
   const [searchData, setSearchData] = useState<SearchRow[] | null>(null);
   const [loadError, setLoadError] = useState('');
+  const [lensError, setLensError] = useState('');
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<View>({ zoom: 1, panX: 0, panY: 0 });
   const [activeCluster, setActiveCluster] = useState<number | null>(null);
   const [showNoise, setShowNoise] = useState(true);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [selectedSupplement, setSelectedSupplement] = useState<{
     index: number;
     row: DetailRow | null;
   } | null>(null);
   const [query, setQuery] = useState('');
-  const [showMethod, setShowMethod] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
   const [showInspector, setShowInspector] = useState(false);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
@@ -171,15 +285,22 @@ export default function Atlas() {
         if (!response.ok) throw new Error('The saved map could not be loaded.');
         return response.json() as Promise<MapData>;
       }),
-      fetch('data/clusters.json').then((response) => {
-        if (!response.ok) throw new Error('The cluster descriptions could not be loaded.');
-        return response.json() as Promise<ClusterData>;
+      fetch('data/lenses/catalog.json').then((response) => {
+        if (!response.ok) throw new Error('The clustering lenses could not be loaded.');
+        return response.json() as Promise<LensCatalog>;
       }),
     ])
-      .then(([map, clusters]) => {
+      .then(([map, catalog]) => {
         if (cancelled) return;
+        if (map.count !== catalog.paperCount || map.points.length !== catalog.paperCount) {
+          throw new Error('The map and clustering lenses do not describe the same papers.');
+        }
+        const initialLabels = Int16Array.from(map.points, (point) => point[2]);
+        lensLabelCacheRef.current.set(catalog.defaultLens, initialLabels);
         setMapData(map);
-        setClusterData(clusters);
+        setLensCatalog(catalog);
+        setActiveLensId(catalog.defaultLens);
+        setLabelState({ lensId: catalog.defaultLens, labels: initialLabels });
       })
       .catch((error: Error) => {
         if (!cancelled) setLoadError(error.message);
@@ -202,22 +323,67 @@ export default function Atlas() {
     };
   }, []);
 
+  const activeLens = useMemo(
+    () => lensCatalog?.lenses.find((lens) => lens.id === activeLensId) ?? null,
+    [activeLensId, lensCatalog],
+  );
+  const currentLabels = labelState?.lensId === activeLensId ? labelState.labels : null;
+
   const clusterById = useMemo(() => {
     const result = new Map<number, Cluster>();
-    clusterData?.clusters.forEach((cluster) => result.set(cluster.id, cluster));
+    activeLens?.clusters.forEach((cluster) => result.set(cluster.id, cluster));
     return result;
-  }, [clusterData]);
+  }, [activeLens]);
+  const sortedClusters = useMemo(
+    () => activeLens?.clusters.slice().sort((left, right) => right.count - left.count) ?? [],
+    [activeLens],
+  );
+
+  const changeLens = useCallback(async (lensId: string) => {
+    if (!lensCatalog || lensId === activeLensId || lensLoadingId) return;
+    const lens = lensCatalog.lenses.find((candidate) => candidate.id === lensId);
+    if (!lens) return;
+    const requestId = lensRequestRef.current + 1;
+    lensRequestRef.current = requestId;
+    setLensError('');
+    setLensLoadingId(lensId);
+    try {
+      let labels = lensLabelCacheRef.current.get(lensId);
+      if (!labels) {
+        const response = await fetch(lens.labelsFile);
+        if (!response.ok) throw new Error('The selected clustering lens could not be loaded.');
+        const buffer = await response.arrayBuffer();
+        if (buffer.byteLength !== lensCatalog.paperCount * Int16Array.BYTES_PER_ELEMENT) {
+          throw new Error('The selected clustering lens does not match the map.');
+        }
+        labels = new Int16Array(buffer);
+        lensLabelCacheRef.current.set(lensId, labels);
+      }
+      if (lensRequestRef.current !== requestId) return;
+      setActiveLensId(lensId);
+      setLabelState({ lensId, labels });
+      setActiveCluster(null);
+      setHoveredIndex(null);
+      setShowNoise(true);
+    } catch (error) {
+      if (lensRequestRef.current === requestId) {
+        setLensError(error instanceof Error ? error.message : 'The selected lens could not be loaded.');
+      }
+    } finally {
+      if (lensRequestRef.current === requestId) setLensLoadingId(null);
+    }
+  }, [activeLensId, lensCatalog, lensLoadingId]);
 
   const pointGroups = useMemo(() => {
-    if (!mapData) return new Map<number, number[]>();
+    if (!currentLabels) return new Map<number, number[]>();
     const groups = new Map<number, number[]>();
-    mapData.points.forEach((point, index) => {
-      const group = groups.get(point[2]);
+    currentLabels.forEach((clusterId, index) => {
+      const group = groups.get(clusterId);
       if (group) group.push(index);
-      else groups.set(point[2], [index]);
+      else groups.set(clusterId, [index]);
     });
     return groups;
-  }, [mapData]);
+  }, [currentLabels]);
 
   useEffect(() => {
     if (!mapData) return;
@@ -420,11 +586,11 @@ export default function Atlas() {
       gl.enableVertexAttribArray(0);
       gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, colors, gl.DYNAMIC_DRAW);
       gl.enableVertexAttribArray(1);
       gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, clusterBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, clusters, gl.STATIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, clusters, gl.DYNAMIC_DRAW);
       gl.enableVertexAttribArray(2);
       gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
       gl.bindVertexArray(null);
@@ -469,6 +635,30 @@ export default function Atlas() {
       webglRef.current = null;
     };
   }, [mapData]);
+
+  useEffect(() => {
+    const renderer = webglRef.current;
+    if (!renderer || !currentLabels || currentLabels.length !== renderer.pointCount) return;
+    const clusters = new Float32Array(currentLabels.length);
+    const colors = new Float32Array(currentLabels.length * 3);
+    currentLabels.forEach((clusterId, index) => {
+      clusters[index] = clusterId;
+      const color = colorChannels(clusterColor(clusterId, clusterById));
+      colors[index * 3] = color[0];
+      colors[index * 3 + 1] = color[1];
+      colors[index * 3 + 2] = color[2];
+    });
+    const { gl } = renderer;
+    gl.bindBuffer(gl.ARRAY_BUFFER, renderer.clusterBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, clusters);
+    gl.bindBuffer(gl.ARRAY_BUFFER, renderer.colorBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, colors);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    const frame = requestAnimationFrame(drawMap);
+    return () => cancelAnimationFrame(frame);
+    // Buffer uploads should only occur when a clustering lens changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clusterById, currentLabels]);
 
   useEffect(() => {
     if (!mapData) return;
@@ -585,8 +775,9 @@ export default function Atlas() {
           if (x < 0 || x >= GRID_SIZE) continue;
           for (const index of spatialRef.current[y * GRID_SIZE + x] ?? []) {
             const point = mapData.points[index];
-            if (point[2] < 0 && !showNoise) continue;
-            if (activeCluster !== null && point[2] !== activeCluster) continue;
+            const clusterId = currentLabels?.[index] ?? point[2];
+            if (clusterId < 0 && !showNoise) continue;
+            if (activeCluster !== null && clusterId !== activeCluster) continue;
             const position = toScreen(point[0], point[1]);
             const distance = (position.x - screenX) ** 2 + (position.y - screenY) ** 2;
             if (distance < nearestDistance) {
@@ -598,7 +789,7 @@ export default function Atlas() {
       }
       return nearest;
     },
-    [activeCluster, getMetrics, mapData, showNoise, toScreen, view],
+    [activeCluster, currentLabels, getMetrics, mapData, showNoise, toScreen, view],
   );
 
   const focusPoint = useCallback(
@@ -607,6 +798,7 @@ export default function Atlas() {
       const metrics = getMetrics();
       const point = mapData.points[index];
       if (!metrics || !point) return;
+      const clusterId = currentLabels?.[index] ?? point[2];
       const zoom = Math.max(view.zoom, 6);
       setView({
         zoom,
@@ -614,11 +806,11 @@ export default function Atlas() {
         panY: (point[1] - metrics.centerY) * metrics.baseScale * zoom,
       });
       setSelectedIndex(index);
-      setActiveCluster(point[2] >= 0 ? point[2] : null);
+      setActiveCluster(clusterId >= 0 ? clusterId : null);
       setShowInspector(true);
       setQuery('');
     },
-    [getMetrics, mapData, view.zoom],
+    [currentLabels, getMetrics, mapData, view.zoom],
   );
 
   const handleSearchResultClick = useCallback(
@@ -634,6 +826,7 @@ export default function Atlas() {
       setActiveCluster(clusterId);
       setSelectedIndex(null);
       setShowLegend(false);
+      if (clusterId !== null) setShowInspector(true);
       if (clusterId === null || !mapData) {
         setView({ zoom: 1, panX: 0, panY: 0 });
         return;
@@ -671,7 +864,8 @@ export default function Atlas() {
   );
 
   const selectedPoint = selectedIndex === null ? null : mapData?.points[selectedIndex] ?? null;
-  const selectedCluster = selectedPoint ? clusterById.get(selectedPoint[2]) : activeCluster === null ? null : clusterById.get(activeCluster);
+  const selectedClusterId = selectedIndex === null ? null : currentLabels?.[selectedIndex] ?? selectedPoint?.[2] ?? -1;
+  const selectedCluster = selectedPoint ? clusterById.get(selectedClusterId ?? -1) : activeCluster === null ? null : clusterById.get(activeCluster);
   const selectedSearch = selectedIndex === null ? null : searchData?.[selectedIndex] ?? null;
   const selectedDetail = selectedIndex !== null && selectedSupplement?.index === selectedIndex
     ? selectedSupplement.row
@@ -679,7 +873,8 @@ export default function Atlas() {
   const detailLoading = selectedIndex !== null && selectedSupplement?.index !== selectedIndex;
   const hoveredRow = hoveredIndex === null ? null : searchData?.[hoveredIndex] ?? null;
   const hoveredPoint = hoveredIndex === null ? null : mapData?.points[hoveredIndex] ?? null;
-  const hoveredCluster = hoveredPoint ? clusterById.get(hoveredPoint[2]) : null;
+  const hoveredClusterId = hoveredIndex === null ? null : currentLabels?.[hoveredIndex] ?? hoveredPoint?.[2] ?? -1;
+  const hoveredCluster = hoveredPoint ? clusterById.get(hoveredClusterId ?? -1) : null;
   const selectedMarker = selectedPoint ? toScreen(selectedPoint[0], selectedPoint[1]) : null;
   const hoveredMarker = hoveredPoint ? toScreen(hoveredPoint[0], hoveredPoint[1]) : null;
 
@@ -742,14 +937,45 @@ export default function Atlas() {
 
         <div className="header-actions">
           <button className="mobile-panel-button" onClick={() => setShowLegend(true)}>Clusters</button>
-          <button className="text-button" onClick={() => setShowMethod(true)}>Method</button>
         </div>
       </header>
 
       <section className="atlas-workspace">
         <aside className={`cluster-panel ${showLegend ? 'panel-open' : ''}`}>
+          <div className="lens-controls">
+            <div className="lens-control-heading">
+              <label htmlFor="lens-select">Clustering lens</label>
+              {activeLens?.preferred && <span>Preferred</span>}
+            </div>
+            <select
+              id="lens-select"
+              value={lensLoadingId ?? activeLensId}
+              onChange={(event) => void changeLens(event.target.value)}
+              disabled={!lensCatalog || lensLoadingId !== null}
+            >
+              <optgroup label="HDBSCAN lenses">
+                {lensCatalog?.lenses.filter((lens) => lens.algorithm === 'hdbscan').map((lens) => (
+                  <option key={lens.id} value={lens.id}>
+                    {lens.preferred ? `Preferred · ${lens.optionLabel}` : lens.optionLabel}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="K-means lenses">
+                {lensCatalog?.lenses.filter((lens) => lens.algorithm === 'kmeans').map((lens) => (
+                  <option key={lens.id} value={lens.id}>{lens.optionLabel}</option>
+                ))}
+              </optgroup>
+            </select>
+            <p className="corpus-stat"><strong>69,400</strong> English-language papers</p>
+            <p className="lens-stats">
+              <span><strong>{activeLens?.clusterCount ?? '—'}</strong> clusters</span>
+              <span><strong>{activeLens ? `${activeLens.noisePct.toFixed(1)}%` : '—'}</strong> unassigned</span>
+            </p>
+            {lensLoadingId && <p className="lens-message">Loading lens…</p>}
+            {lensError && <p className="lens-message lens-error">{lensError}</p>}
+          </div>
           <div className="panel-heading">
-            <h2>Clusters <span>{clusterData?.clusters.length ?? '—'}</span></h2>
+            <h2>Clusters <span>{activeLens?.clusterCount ?? '—'}</span></h2>
             <button className="panel-close" onClick={() => setShowLegend(false)} aria-label="Close cluster panel">×</button>
           </div>
           <button
@@ -760,10 +986,7 @@ export default function Atlas() {
             <span><strong>All papers</strong></span>
           </button>
           <div className="cluster-list">
-            {clusterData?.clusters
-              .slice()
-              .sort((left, right) => right.count - left.count)
-              .map((cluster) => (
+            {sortedClusters.map((cluster) => (
                 <button
                   key={cluster.id}
                   className={`cluster-row ${activeCluster === cluster.id ? 'active' : ''}`}
@@ -771,16 +994,20 @@ export default function Atlas() {
                   aria-pressed={activeCluster === cluster.id}
                   title={`${cluster.label} — ${formatNumber(cluster.count)} papers`}
                 >
-                  <span className="cluster-swatch" style={{ background: clusterColor(cluster.id) }} />
+                  <span className="cluster-swatch" style={{ background: clusterColor(cluster.id, clusterById) }} />
                   <span><strong>{cluster.label}</strong></span>
                 </button>
               ))}
           </div>
-          <label className="noise-toggle">
-            <input type="checkbox" checked={showNoise} onChange={(event) => setShowNoise(event.target.checked)} />
-            <span />
-            Show {clusterData ? formatNumber(clusterData.noiseCount) : '—'} unclustered papers
-          </label>
+          {activeLens && activeLens.noiseCount > 0 ? (
+            <label className="noise-toggle">
+              <input type="checkbox" checked={showNoise} onChange={(event) => setShowNoise(event.target.checked)} />
+              <span />
+              Show {formatNumber(activeLens.noiseCount)} unclustered papers
+            </label>
+          ) : (
+            <p className="assignment-note">All papers are assigned in this lens.</p>
+          )}
         </aside>
 
         <div className="map-shell" ref={mapShellRef}>
@@ -816,8 +1043,7 @@ export default function Atlas() {
                 return;
               }
               const picked = pickPoint(localX, localY);
-              setHoveredIndex(picked);
-              setHoverPosition({ x: localX, y: localY });
+              setHoveredIndex((current) => current === picked ? current : picked);
             }}
             onPointerUp={(event) => {
               const drag = dragRef.current;
@@ -864,7 +1090,7 @@ export default function Atlas() {
               style={{
                 left: selectedMarker.x,
                 top: selectedMarker.y,
-                background: clusterColor(selectedPoint[2]),
+                background: clusterColor(selectedClusterId ?? -1, clusterById),
               }}
               aria-hidden="true"
             />
@@ -875,15 +1101,15 @@ export default function Atlas() {
               style={{
                 left: hoveredMarker.x,
                 top: hoveredMarker.y,
-                background: clusterColor(hoveredPoint[2]),
+                background: clusterColor(hoveredClusterId ?? -1, clusterById),
               }}
               aria-hidden="true"
             />
           )}
 
-          {hoveredIndex !== null && hoveredPoint && (
-            <div className="paper-tooltip" style={{ left: hoverPosition.x, top: hoverPosition.y }}>
-              <span style={{ background: clusterColor(hoveredPoint[2]) }} />
+          {hoveredIndex !== null && hoveredPoint && hoveredMarker && (
+            <div className="paper-tooltip" style={{ left: hoveredMarker.x, top: hoveredMarker.y }}>
+              <span style={{ background: clusterColor(hoveredClusterId ?? -1, clusterById) }} />
               <div>
                 <strong>{hoveredRow?.[0] ?? `Paper ${hoveredIndex + 1}`}</strong>
                 <small>{hoveredCluster?.label ?? 'Unclustered'}</small>
@@ -902,95 +1128,74 @@ export default function Atlas() {
         <aside className={`paper-panel ${showInspector ? 'panel-open' : ''}`}>
           <button className="panel-close inspector-close" onClick={() => setShowInspector(false)} aria-label="Close details panel">×</button>
 
-          {selectedIndex !== null ? (
-            <article className="paper-detail">
-              <div className="detail-cluster-label">
-                <span style={{ background: clusterColor(selectedPoint?.[2] ?? -1) }} />
-                {selectedCluster?.label ?? 'Unclustered'}
-              </div>
-              <h3>{selectedSearch?.[0] ?? 'Paper details'}</h3>
-              <p className="paper-authors">{selectedSearch?.[1] || 'Authorship not listed'}</p>
-              <dl className="paper-meta">
-                <div><dt>Date</dt><dd>{selectedSearch?.[2] || 'Not listed'}</dd></div>
-              </dl>
-              <section className="abstract-section">
-                <p className="eyebrow">Abstract</p>
-                {detailLoading ? (
-                  <div className="abstract-loading" role="status" aria-live="polite">
-                    <span />
-                    <p>Loading abstract…</p>
-                  </div>
-                ) : (
-                  <p>
-                    {selectedDetail?.[0] ||
-                      (selectedSupplement?.row === null
-                        ? 'The abstract could not be loaded.'
-                        : 'No abstract is available in the current PhilPapers metadata.')}
-                  </p>
-                )}
-              </section>
-              {selectedSearch?.[3] && (
-                <a className="primary-link" href={selectedSearch[3]} target="_blank" rel="noreferrer">
-                  Open on PhilPapers <span aria-hidden="true">↗</span>
-                </a>
-              )}
-              <button className="secondary-link" onClick={() => setSelectedIndex(null)}>Back to cluster overview</button>
-            </article>
-          ) : activeCluster !== null && selectedCluster ? (
-            <article className="cluster-detail">
-              <div className="cluster-orb" style={{ background: clusterColor(selectedCluster.id) }} />
-              <h3>{selectedCluster.label}</h3>
-              <p><strong>{formatNumber(selectedCluster.count)}</strong> papers assigned to this cluster.</p>
-              <section>
-                <p className="eyebrow">Characteristic terms</p>
-                <div className="term-list">
-                  {selectedCluster.terms.map((term) => <span key={term}>{term}</span>)}
+          <div className="paper-panel-content">
+            {selectedIndex !== null ? (
+              <article className="paper-detail">
+                <div className="detail-cluster-label">
+                  <span style={{ background: clusterColor(selectedClusterId ?? -1, clusterById) }} />
+                  {selectedCluster?.label ?? 'Unclustered in this lens'}
                 </div>
-              </section>
-              <button className="secondary-link" onClick={() => focusCluster(null)}>Return to the full atlas</button>
-            </article>
-          ) : (
-            <article className="atlas-overview">
-              <dl className="overview-stats">
-                <div><dt>English-language papers</dt><dd>69,400</dd></div>
-                <div><dt>HDBSCAN clusters</dt><dd>42</dd></div>
-                <div><dt>Clustered papers</dt><dd>48,119</dd></div>
-                <div><dt>Unassigned as noise</dt><dd>30.7%</dd></div>
-              </dl>
-              <p>
-                Each point represents one paper. Position comes from the saved projection; colour indicates
-                HDBSCAN cluster assignment.
-              </p>
-            </article>
+                <h3>{selectedSearch?.[0] ?? 'Paper details'}</h3>
+                <p className="paper-authors">{selectedSearch?.[1] || 'Authorship not listed'}</p>
+                <dl className="paper-meta">
+                  <div><dt>Date</dt><dd>{selectedSearch?.[2] || 'Not listed'}</dd></div>
+                </dl>
+                <section className="abstract-section">
+                  <p className="eyebrow">Abstract</p>
+                  {detailLoading ? (
+                    <div className="abstract-loading" role="status" aria-live="polite">
+                      <span />
+                      <p>Loading abstract…</p>
+                    </div>
+                  ) : (
+                    <p>
+                      {selectedDetail?.[0] ||
+                        (selectedSupplement?.row === null
+                          ? 'The abstract could not be loaded.'
+                          : 'No abstract is available in the current PhilPapers metadata.')}
+                    </p>
+                  )}
+                </section>
+                {selectedSearch?.[3] && (
+                  <a className="primary-link" href={selectedSearch[3]} target="_blank" rel="noreferrer">
+                    Open on PhilPapers <span aria-hidden="true">↗</span>
+                  </a>
+                )}
+                <button className="secondary-link" onClick={() => setSelectedIndex(null)}>Back to cluster overview</button>
+              </article>
+            ) : activeCluster !== null && selectedCluster ? (
+              <article className="cluster-detail">
+                <div className="cluster-orb" style={{ background: clusterColor(selectedCluster.id, clusterById) }} />
+                <h3>{selectedCluster.label}</h3>
+                <p><strong>{formatNumber(selectedCluster.count)}</strong> papers assigned to this cluster.</p>
+                <section>
+                  <p className="eyebrow">Characteristic terms</p>
+                  <div className="term-list">
+                    {selectedCluster.terms.map((term) => <span key={term}>{term}</span>)}
+                  </div>
+                </section>
+                <button className="secondary-link" onClick={() => focusCluster(null)}>Return to the full atlas</button>
+              </article>
+            ) : (
+              <article className="atlas-overview">
+                <p className="eyebrow">Current lens</p>
+                <h3>{activeLens?.name ?? 'Clustering lens'}</h3>
+                <p>
+                  Colour shows the assignments from this lens. The papers remain on the same fixed projection,
+                  so differences between lenses can be compared directly.
+                </p>
+              </article>
+            )}
+          </div>
+          {activeLens && lensCatalog && (
+            <MethodSummary
+              lens={activeLens}
+              catalog={lensCatalog}
+              collapsed={selectedIndex !== null || activeCluster !== null}
+            />
           )}
         </aside>
       </section>
-
-      {showMethod && (
-        <div className="method-backdrop" role="dialog" aria-modal="true" aria-labelledby="method-title" onMouseDown={() => setShowMethod(false)}>
-          <article className="method-card" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="method-close" onClick={() => setShowMethod(false)} aria-label="Close method description">×</button>
-            <h2 id="method-title">Methods</h2>
-            <p>
-              Each paper is represented by a 768-dimensional SPECTER embedding. The embeddings were reduced
-              to 100 dimensions by PCA, then to 30 dimensions by UMAP using cosine distance, 15 neighbours and
-              a minimum distance of 0. We then fitted HDBSCAN in this 30-dimensional space, setting the minimum
-              cluster size to 200 and the minimum number of samples to 15. This produced 42 clusters and left
-              21,281 papers unassigned.
-            </p>
-            <p>
-              The displayed coordinates come from a separate two-dimensional UMAP of the 30-dimensional representation,
-              using 15 neighbours and a minimum distance of 0.1. The projection is intended for visual exploration.
-              Nearby points are often semantically related, but the map does not preserve every high-dimensional distance,
-              cluster shape or boundary relation.
-            </p>
-            <p>
-              Grey points are papers that HDBSCAN treated as noise; they were not assigned to a cluster. The saved export
-              contains categorical assignments but not membership probabilities, so confidence scores are not shown.
-            </p>
-          </article>
-        </div>
-      )}
     </main>
   );
 }

@@ -138,8 +138,7 @@ button { color: inherit; }
 .selected-marker { width: 14px; height: 14px; }
 .hover-marker { width: 10px; height: 10px; }
 .atlas-loader { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; background: var(--background); }
-.atlas-loader h1 { margin: 7px 0; font-size: clamp(25px, 3vw, 38px); letter-spacing: -.035em; font-weight: 550; }
-.atlas-loader > p:last-child { max-width: 420px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.atlas-loader > p { margin: 0; color: var(--muted); font-size: 15px; }
 .loader-orbit { width: 60px; height: 60px; margin-bottom: 20px; border: 1px solid #3b3d4d; border-radius: 50%; position: relative; animation: orbit 6s linear infinite; }
 .loader-orbit span { position: absolute; border-radius: 50%; background: #b8bfd8; }
 .loader-orbit span:nth-child(1) { width: 5px; height: 5px; left: 6px; top: 23px; }

@@ -220,9 +220,7 @@ function Loader() {
         <span />
         <span />
       </div>
-      <p className="eyebrow">Loading the atlas</p>
-      <h1>Placing 69,400 papers</h1>
-      <p>The saved PhilPapers projection is being prepared for exploration.</p>
+      <p>Loading…</p>
     </div>
   );
 }

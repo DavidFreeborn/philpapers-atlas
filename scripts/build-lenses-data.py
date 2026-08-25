@@ -17,6 +17,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 PAPER_COUNT = 69_400
 DEFAULT_LENS = "pca100_u30_mcs200_ms15"
 DISPLAY_HDBSCAN_LENS = "display_umap2_mcs150_ms50_eom"
+LDA_LENSES = ["lda_k20_default", "lda_k60_default"]
 COLOUR_MATCH_JACCARD = 0.80
 MAP_BACKGROUND = "#12121a"
 MIN_POINT_CONTRAST = 4.5
@@ -412,6 +413,52 @@ def display_cluster_rows(
     return rows
 
 
+def load_lda_lenses(
+    analysis_data: Path,
+    labels_output: Path,
+) -> tuple[list[dict], dict[str, np.ndarray]]:
+    """Load the reviewed LDA subset and emit its compact assignment arrays."""
+    lda_scan = json.loads((analysis_data / "lda-selected.json").read_text(encoding="utf-8"))
+    lda_by_id = {lens["id"]: lens for lens in lda_scan["lenses"]}
+    lenses: list[dict] = []
+    labels_by_lens: dict[str, np.ndarray] = {}
+    for lens_id in LDA_LENSES:
+        lda = lda_by_id[lens_id]
+        labels = np.load(analysis_data / lda["labelsFile"], allow_pickle=False)
+        labels_by_lens[lens_id] = labels
+        write_labels(labels, labels_output / f"{lens_id}.bin")
+        topic_count = int(lda["method"]["topicCount"])
+        topics = [
+            {
+                "id": int(topic["id"]),
+                "label": topic["label"],
+                "count": int(topic["count"]),
+                "terms": topic["terms"][:10],
+                "color": "",
+            }
+            for topic in lda["topics"]
+        ]
+        if len(topics) != topic_count or sum(topic["count"] for topic in topics) != PAPER_COUNT:
+            raise ValueError(f"Incomplete LDA topic metadata for {lens_id}")
+        lenses.append(
+            {
+                "id": lens_id,
+                "name": f"LDA · {topic_count} topics",
+                "optionLabel": f"{topic_count} topics · LDA",
+                "algorithm": "lda",
+                "preferred": False,
+                "labelsFile": f"data/lenses/labels/{lens_id}.bin",
+                "clusterCount": topic_count,
+                "noiseCount": 0,
+                "noisePct": 0.0,
+                "method": lda["method"],
+                "metrics": lda["metrics"],
+                "clusters": topics,
+            }
+        )
+    return lenses, labels_by_lens
+
+
 def build(source: Path, public_data: Path, analysis_data: Path) -> None:
     output = public_data / "lenses"
     labels_output = output / "labels"
@@ -551,10 +598,14 @@ def build(source: Path, public_data: Path, analysis_data: Path) -> None:
         }
     )
 
+    lda_lenses, lda_labels = load_lda_lenses(analysis_data, labels_output)
+    lenses.extend(lda_lenses)
+    labels_by_lens.update(lda_labels)
+
     assign_consistent_colours(lenses, labels_by_lens)
 
     catalog = {
-        "version": "2.2.0",
+        "version": "2.3.0",
         "paperCount": PAPER_COUNT,
         "defaultLens": DEFAULT_LENS,
         "projection": {
@@ -574,13 +625,52 @@ def build(source: Path, public_data: Path, analysis_data: Path) -> None:
     print(f"Wrote {len(lenses)} lenses to {output}")
 
 
+def update_lda_lenses(public_data: Path, analysis_data: Path) -> None:
+    """Add reviewed LDA models to an already generated lens catalogue."""
+    output = public_data / "lenses"
+    labels_output = output / "labels"
+    catalog_path = output / "catalog.json"
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    lenses = [lens for lens in catalog["lenses"] if lens["algorithm"] != "lda"]
+    labels_by_lens = {
+        lens["id"]: np.fromfile(
+            public_data.parent / lens["labelsFile"],
+            dtype="<i2",
+        )
+        for lens in lenses
+    }
+    if any(labels.shape != (PAPER_COUNT,) for labels in labels_by_lens.values()):
+        raise ValueError("An existing lens assignment file has an unexpected length")
+    lda_lenses, lda_labels = load_lda_lenses(analysis_data, labels_output)
+    lenses.extend(lda_lenses)
+    labels_by_lens.update(lda_labels)
+    assign_consistent_colours(lenses, labels_by_lens)
+    catalog["version"] = "2.3.0"
+    catalog["lenses"] = lenses
+    catalog_path.write_text(
+        json.dumps(catalog, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    print(f"Updated {catalog_path} with {len(lda_lenses)} reviewed LDA lenses")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source", type=Path, required=True)
+    parser.add_argument("--source", type=Path)
     parser.add_argument("--public-data", type=Path, default=Path("public/data"))
     parser.add_argument("--analysis-data", type=Path, default=Path("analysis"))
+    parser.add_argument(
+        "--lda-only",
+        action="store_true",
+        help="update LDA lenses in an existing generated catalogue",
+    )
     args = parser.parse_args()
-    build(args.source.resolve(), args.public_data.resolve(), args.analysis_data.resolve())
+    if args.lda_only:
+        update_lda_lenses(args.public_data.resolve(), args.analysis_data.resolve())
+    elif args.source is None:
+        parser.error("--source is required unless --lda-only is used")
+    else:
+        build(args.source.resolve(), args.public_data.resolve(), args.analysis_data.resolve())
 
 
 if __name__ == "__main__":

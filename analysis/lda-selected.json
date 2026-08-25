@@ -1,0 +1,3165 @@
+{
+  "version": "1.0.0",
+  "randomState": 20260825,
+  "trainingDocuments": 55520,
+  "validationDocuments": 6940,
+  "testDocumentsReserved": 6940,
+  "lenses": [
+    {
+      "id": "lda_k20_default",
+      "granularity": "broad",
+      "labelsFile": "lda_k20_default-labels.npy",
+      "method": {
+        "topicCount": 20,
+        "docTopicPrior": 0.05,
+        "topicWordPrior": 0.05,
+        "priorVariant": "default",
+        "learningMethod": "online",
+        "iterations": 25,
+        "vocabularySize": 14104,
+        "minDocumentFrequency": 20,
+        "maxDocumentFrequency": 0.5,
+        "ngramRange": [
+          1,
+          2
+        ]
+      },
+      "metrics": {
+        "heldOutPerplexity": 6467.231423164459,
+        "npmiCoherence": 0.20301582269302684,
+        "topicDiversity": 0.9266666666666667,
+        "topicExclusivity": 0.7320546572334351,
+        "meanDominantProbability": 0.4694003201342774,
+        "topicStability": 0.5341601371765137,
+        "assignmentStabilityAri": 0.20260606921693647,
+        "finalScore": 0.5527134319987617
+      },
+      "topics": [
+        {
+          "id": 0,
+          "label": "Political \u00b7 Power",
+          "terms": [
+            "political",
+            "power",
+            "justice",
+            "public",
+            "state",
+            "social",
+            "politics",
+            "theory",
+            "democracy",
+            "society"
+          ],
+          "count": 4484
+        },
+        {
+          "id": 1,
+          "label": "Perception \u00b7 Realism",
+          "terms": [
+            "perception",
+            "realism",
+            "perceptual",
+            "experience",
+            "modal",
+            "phenomenology",
+            "visual",
+            "world",
+            "worlds",
+            "imagination"
+          ],
+          "count": 1611
+        },
+        {
+          "id": 2,
+          "label": "God \u00b7 Space",
+          "terms": [
+            "god",
+            "space",
+            "model",
+            "time",
+            "mathematical",
+            "physics",
+            "theory",
+            "reality",
+            "world",
+            "universe"
+          ],
+          "count": 3471
+        },
+        {
+          "id": 3,
+          "label": "Health \u00b7 Public",
+          "terms": [
+            "health",
+            "public",
+            "change",
+            "climate",
+            "global",
+            "covid-",
+            "policy",
+            "children",
+            "medical",
+            "risk"
+          ],
+          "count": 3521
+        },
+        {
+          "id": 4,
+          "label": "Moral \u00b7 Ethics",
+          "terms": [
+            "moral",
+            "ethics",
+            "ethical",
+            "good",
+            "morality",
+            "responsibility",
+            "value",
+            "virtue",
+            "morally",
+            "theory"
+          ],
+          "count": 4633
+        },
+        {
+          "id": 5,
+          "label": "Epistemic \u00b7 Evidence",
+          "terms": [
+            "epistemic",
+            "evidence",
+            "belief",
+            "beliefs",
+            "reasons",
+            "epistemology",
+            "normative",
+            "rational",
+            "cases",
+            "free"
+          ],
+          "count": 8085
+        },
+        {
+          "id": 6,
+          "label": "Social \u00b7 Kant",
+          "terms": [
+            "social",
+            "kant",
+            "cultural",
+            "intelligence",
+            "artificial",
+            "media",
+            "culture",
+            "artificial intelligence",
+            "music",
+            "kant's"
+          ],
+          "count": 2284
+        },
+        {
+          "id": 7,
+          "label": "Action \u00b7 Causal",
+          "terms": [
+            "action",
+            "causal",
+            "practical",
+            "reasoning",
+            "causation",
+            "african",
+            "hegel",
+            "collective",
+            "reasons",
+            "theory"
+          ],
+          "count": 1081
+        },
+        {
+          "id": 8,
+          "label": "Human \u00b7 Life",
+          "terms": [
+            "human",
+            "life",
+            "rights",
+            "freedom",
+            "nature",
+            "animals",
+            "death",
+            "animal",
+            "beings",
+            "world"
+          ],
+          "count": 1773
+        },
+        {
+          "id": 9,
+          "label": "Theory \u00b7 Truth",
+          "terms": [
+            "theory",
+            "truth",
+            "principle",
+            "claim",
+            "theories",
+            "true",
+            "properties",
+            "metaphysics",
+            "metaphysical",
+            "thesis"
+          ],
+          "count": 8852
+        },
+        {
+          "id": 10,
+          "label": "Problem \u00b7 Theory",
+          "terms": [
+            "problem",
+            "theory",
+            "meaning",
+            "semantics",
+            "semantic",
+            "evolutionary",
+            "solution",
+            "hume",
+            "evolution",
+            "psychology"
+          ],
+          "count": 2298
+        },
+        {
+          "id": 11,
+          "label": "Education \u00b7 Students",
+          "terms": [
+            "education",
+            "students",
+            "learning",
+            "aristotle",
+            "school",
+            "teaching",
+            "teachers",
+            "academic",
+            "educational",
+            "mathematics"
+          ],
+          "count": 1803
+        },
+        {
+          "id": 12,
+          "label": "Information \u00b7 Data",
+          "terms": [
+            "information",
+            "data",
+            "development",
+            "technology",
+            "management",
+            "design",
+            "control",
+            "analysis",
+            "systems",
+            "business"
+          ],
+          "count": 2825
+        },
+        {
+          "id": 13,
+          "label": "Logic \u00b7 Law",
+          "terms": [
+            "logic",
+            "law",
+            "logical",
+            "legal",
+            "memory",
+            "natural",
+            "sexual",
+            "disagreement",
+            "skepticism",
+            "rule"
+          ],
+          "count": 1230
+        },
+        {
+          "id": 14,
+          "label": "Consciousness \u00b7 Mental",
+          "terms": [
+            "consciousness",
+            "mental",
+            "mind",
+            "quantum",
+            "theory",
+            "experience",
+            "states",
+            "brain",
+            "phenomenal",
+            "information"
+          ],
+          "count": 2918
+        },
+        {
+          "id": 15,
+          "label": "Philosophy \u00b7 History",
+          "terms": [
+            "philosophy",
+            "philosophical",
+            "history",
+            "thought",
+            "religious",
+            "religion",
+            "modern",
+            "philosophers",
+            "century",
+            "contemporary"
+          ],
+          "count": 8875
+        },
+        {
+          "id": 16,
+          "label": "Time \u00b7 Art",
+          "terms": [
+            "time",
+            "art",
+            "aesthetic",
+            "nietzsche",
+            "past",
+            "future",
+            "temporal",
+            "narrative",
+            "aesthetics",
+            "war"
+          ],
+          "count": 2737
+        },
+        {
+          "id": 17,
+          "label": "Knowledge \u00b7 Identity",
+          "terms": [
+            "knowledge",
+            "identity",
+            "self",
+            "evil",
+            "plato",
+            "belief",
+            "know",
+            "personal",
+            "soul",
+            "person"
+          ],
+          "count": 1876
+        },
+        {
+          "id": 18,
+          "label": "Language \u00b7 Linguistic",
+          "terms": [
+            "language",
+            "linguistic",
+            "machine",
+            "english",
+            "learning",
+            "relativism",
+            "communication",
+            "expert",
+            "languages",
+            "deep"
+          ],
+          "count": 729
+        },
+        {
+          "id": 19,
+          "label": "Science \u00b7 Cognitive",
+          "terms": [
+            "science",
+            "scientific",
+            "cognitive",
+            "conceptual",
+            "concepts",
+            "ontology",
+            "sciences",
+            "models",
+            "understanding",
+            "systems"
+          ],
+          "count": 4314
+        }
+      ]
+    },
+    {
+      "id": "lda_k60_default",
+      "granularity": "balanced",
+      "labelsFile": "lda_k60_default-labels.npy",
+      "method": {
+        "topicCount": 60,
+        "docTopicPrior": 0.016666666666666666,
+        "topicWordPrior": 0.016666666666666666,
+        "priorVariant": "default",
+        "learningMethod": "online",
+        "iterations": 25,
+        "vocabularySize": 14104,
+        "minDocumentFrequency": 20,
+        "maxDocumentFrequency": 0.5,
+        "ngramRange": [
+          1,
+          2
+        ]
+      },
+      "metrics": {
+        "heldOutPerplexity": 7585.55769238495,
+        "npmiCoherence": 0.21957838264890747,
+        "topicDiversity": 0.9311111111111111,
+        "topicExclusivity": 0.7896109777996623,
+        "meanDominantProbability": 0.37475923008904255,
+        "topicStability": 0.4245675603548686,
+        "assignmentStabilityAri": 0.22481264534476494,
+        "finalScore": 0.4668643477901916
+      },
+      "topics": [
+        {
+          "id": 0,
+          "label": "Children \u00b7 Attitudes",
+          "terms": [
+            "children",
+            "attitudes",
+            "school",
+            "schools",
+            "secondary",
+            "family",
+            "child",
+            "challenges",
+            "parents",
+            "attitude"
+          ],
+          "count": 832
+        },
+        {
+          "id": 1,
+          "label": "World \u00b7 Global",
+          "terms": [
+            "world",
+            "global",
+            "economic",
+            "african",
+            "international",
+            "economy",
+            "crisis",
+            "well-being",
+            "revolution",
+            "south"
+          ],
+          "count": 840
+        },
+        {
+          "id": 2,
+          "label": "Model \u00b7 Neural",
+          "terms": [
+            "model",
+            "neural",
+            "network",
+            "image",
+            "learning",
+            "deep",
+            "feeling",
+            "images",
+            "deleuze",
+            "networks"
+          ],
+          "count": 482
+        },
+        {
+          "id": 3,
+          "label": "Time \u00b7 Universe",
+          "terms": [
+            "time",
+            "universe",
+            "black",
+            "infinite",
+            "past",
+            "story",
+            "travel",
+            "welfare",
+            "dark",
+            "letter"
+          ],
+          "count": 463
+        },
+        {
+          "id": 4,
+          "label": "Theory \u00b7 Truth",
+          "terms": [
+            "theory",
+            "theories",
+            "truth",
+            "metaphysics",
+            "realism",
+            "metaphysical",
+            "ontological",
+            "scientific",
+            "laws",
+            "reality"
+          ],
+          "count": 2361
+        },
+        {
+          "id": 5,
+          "label": "Mind \u00b7 Thought",
+          "terms": [
+            "mind",
+            "thought",
+            "body",
+            "thinking",
+            "experiments",
+            "intellectual",
+            "extended",
+            "soul",
+            "thoughts",
+            "brain"
+          ],
+          "count": 626
+        },
+        {
+          "id": 6,
+          "label": "Virtue \u00b7 Intentionality",
+          "terms": [
+            "virtue",
+            "virtues",
+            "intentionality",
+            "korean",
+            "reflection",
+            "virtuous",
+            "korean judicial",
+            "theory",
+            "inquiry",
+            "priority"
+          ],
+          "count": 261
+        },
+        {
+          "id": 7,
+          "label": "Reasons \u00b7 Principle",
+          "terms": [
+            "reasons",
+            "principle",
+            "reason",
+            "right",
+            "claim",
+            "make",
+            "good",
+            "case",
+            "action",
+            "act"
+          ],
+          "count": 7278
+        },
+        {
+          "id": 8,
+          "label": "Logic \u00b7 Semantics",
+          "terms": [
+            "logic",
+            "logical",
+            "semantics",
+            "semantic",
+            "modal",
+            "meaning",
+            "theory",
+            "possible",
+            "terms",
+            "true"
+          ],
+          "count": 4095
+        },
+        {
+          "id": 9,
+          "label": "State \u00b7 Evil",
+          "terms": [
+            "state",
+            "evil",
+            "effect",
+            "levels",
+            "test",
+            "effects",
+            "versus",
+            "nigeria",
+            "level",
+            "influence"
+          ],
+          "count": 568
+        },
+        {
+          "id": 10,
+          "label": "Health \u00b7 Self",
+          "terms": [
+            "health",
+            "self",
+            "care",
+            "medical",
+            "patients",
+            "pain",
+            "medicine",
+            "clinical",
+            "treatment",
+            "ethical"
+          ],
+          "count": 765
+        },
+        {
+          "id": 11,
+          "label": "Quantum \u00b7 Physics",
+          "terms": [
+            "quantum",
+            "physics",
+            "physical",
+            "theory",
+            "mechanics",
+            "quantum mechanics",
+            "music",
+            "relativity",
+            "interpretation",
+            "general"
+          ],
+          "count": 1767
+        },
+        {
+          "id": 12,
+          "label": "Life \u00b7 God",
+          "terms": [
+            "life",
+            "god",
+            "world",
+            "meaning",
+            "existence",
+            "divine",
+            "christian",
+            "reality",
+            "man",
+            "theology"
+          ],
+          "count": 2286
+        },
+        {
+          "id": 13,
+          "label": "Free \u00b7 Plato",
+          "terms": [
+            "free",
+            "plato",
+            "sense",
+            "understanding",
+            "temporal",
+            "creativity",
+            "making",
+            "determinism",
+            "relations",
+            "musical"
+          ],
+          "count": 936
+        },
+        {
+          "id": 14,
+          "label": "Religious \u00b7 Cultural",
+          "terms": [
+            "religious",
+            "cultural",
+            "religion",
+            "culture",
+            "understanding",
+            "practices",
+            "practice",
+            "perspectives",
+            "perspective",
+            "forms"
+          ],
+          "count": 2135
+        },
+        {
+          "id": 15,
+          "label": "Logic \u00b7 War",
+          "terms": [
+            "logic",
+            "war",
+            "naturalism",
+            "conflict",
+            "russell",
+            "control",
+            "military",
+            "just",
+            "addiction",
+            "conflicts"
+          ],
+          "count": 325
+        },
+        {
+          "id": 16,
+          "label": "Reasoning \u00b7 Future",
+          "terms": [
+            "reasoning",
+            "future",
+            "race",
+            "chinese",
+            "vietnam",
+            "discrimination",
+            "racial",
+            "reduction",
+            "china",
+            "genetic"
+          ],
+          "count": 218
+        },
+        {
+          "id": 17,
+          "label": "Science \u00b7 Philosophical",
+          "terms": [
+            "science",
+            "scientific",
+            "philosophical",
+            "understanding",
+            "issues",
+            "framework",
+            "role",
+            "theoretical",
+            "different",
+            "literature"
+          ],
+          "count": 5470
+        },
+        {
+          "id": 18,
+          "label": "Development \u00b7 Business",
+          "terms": [
+            "development",
+            "business",
+            "impact",
+            "management",
+            "analysis",
+            "financial",
+            "data",
+            "economic",
+            "policy",
+            "environmental"
+          ],
+          "count": 3194
+        },
+        {
+          "id": 19,
+          "label": "Ethics \u00b7 Autonomy",
+          "terms": [
+            "ethics",
+            "ethical",
+            "autonomy",
+            "heidegger",
+            "hume",
+            "abortion",
+            "autonomous",
+            "martin",
+            "david",
+            "suicide"
+          ],
+          "count": 482
+        },
+        {
+          "id": 20,
+          "label": "Concept \u00b7 Ontology",
+          "terms": [
+            "concept",
+            "concepts",
+            "ontology",
+            "representation",
+            "speech",
+            "definition",
+            "conceptual",
+            "terms",
+            "subjective",
+            "grounding"
+          ],
+          "count": 998
+        },
+        {
+          "id": 21,
+          "label": "Kant \u00b7 Good",
+          "terms": [
+            "kant",
+            "good",
+            "kantian",
+            "practical",
+            "moral",
+            "kant's",
+            "desire",
+            "character",
+            "buddhist",
+            "obligation"
+          ],
+          "count": 1032
+        },
+        {
+          "id": 22,
+          "label": "Art \u00b7 Kinds",
+          "terms": [
+            "art",
+            "kinds",
+            "aesthetic",
+            "aesthetics",
+            "limits",
+            "kind",
+            "mechanism",
+            "disability",
+            "mechanisms",
+            "mechanistic"
+          ],
+          "count": 384
+        },
+        {
+          "id": 23,
+          "label": "Public \u00b7 Policy",
+          "terms": [
+            "public",
+            "policy",
+            "discourse",
+            "public policy",
+            "politics",
+            "sphere",
+            "constraint",
+            "hobbes",
+            "personhood",
+            "administration"
+          ],
+          "count": 172
+        },
+        {
+          "id": 24,
+          "label": "Belief \u00b7 Justification",
+          "terms": [
+            "belief",
+            "beliefs",
+            "justification",
+            "faith",
+            "puzzle",
+            "believe",
+            "justified",
+            "intentions",
+            "doxastic",
+            "believing"
+          ],
+          "count": 453
+        },
+        {
+          "id": 25,
+          "label": "Social \u00b7 Media",
+          "terms": [
+            "social",
+            "media",
+            "communication",
+            "online",
+            "society",
+            "sciences",
+            "social media",
+            "social sciences",
+            "internet",
+            "interaction"
+          ],
+          "count": 526
+        },
+        {
+          "id": 26,
+          "label": "Natural \u00b7 Evolution",
+          "terms": [
+            "natural",
+            "evolution",
+            "evolutionary",
+            "biological",
+            "biology",
+            "selection",
+            "function",
+            "functions",
+            "punishment",
+            "organisms"
+          ],
+          "count": 688
+        },
+        {
+          "id": 27,
+          "label": "People \u00b7 Progress",
+          "terms": [
+            "people",
+            "progress",
+            "difference",
+            "relational",
+            "movement",
+            "white",
+            "like",
+            "dialogue",
+            "resistance",
+            "bad"
+          ],
+          "count": 456
+        },
+        {
+          "id": 28,
+          "label": "Value \u00b7 Choice",
+          "terms": [
+            "value",
+            "values",
+            "choice",
+            "economics",
+            "judgment",
+            "commentary",
+            "wide",
+            "intrinsic",
+            "valuable",
+            "hume's"
+          ],
+          "count": 302
+        },
+        {
+          "id": 29,
+          "label": "Evidence \u00b7 Cases",
+          "terms": [
+            "evidence",
+            "cases",
+            "objection",
+            "intuitions",
+            "claim",
+            "challenge",
+            "objections",
+            "empirical",
+            "support",
+            "role"
+          ],
+          "count": 2631
+        },
+        {
+          "id": 30,
+          "label": "Women \u00b7 Gender",
+          "terms": [
+            "women",
+            "gender",
+            "sexual",
+            "feminist",
+            "oxford",
+            "sex",
+            "hope",
+            "men",
+            "reflections",
+            "consent"
+          ],
+          "count": 636
+        },
+        {
+          "id": 31,
+          "label": "Knowledge \u00b7 Epistemology",
+          "terms": [
+            "knowledge",
+            "epistemology",
+            "know",
+            "skepticism",
+            "epistemological",
+            "knowing",
+            "epistemic",
+            "ignorance",
+            "assertion",
+            "indigenous"
+          ],
+          "count": 953
+        },
+        {
+          "id": 32,
+          "label": "Material \u00b7 English",
+          "terms": [
+            "material",
+            "english",
+            "emotional",
+            "bias",
+            "bayesian",
+            "cambridge",
+            "extension",
+            "distance",
+            "intelligent",
+            "mark"
+          ],
+          "count": 244
+        },
+        {
+          "id": 33,
+          "label": "Explanation \u00b7 Conceptual",
+          "terms": [
+            "explanation",
+            "conceptual",
+            "explanations",
+            "necessity",
+            "explanatory",
+            "james",
+            "logical",
+            "engineering",
+            "michael",
+            "vagueness"
+          ],
+          "count": 523
+        },
+        {
+          "id": 34,
+          "label": "Change \u00b7 Climate",
+          "terms": [
+            "change",
+            "climate",
+            "climate change",
+            "community",
+            "environmental",
+            "ecological",
+            "changes",
+            "van",
+            "ecology",
+            "peter"
+          ],
+          "count": 310
+        },
+        {
+          "id": 35,
+          "label": "Moral \u00b7 Law",
+          "terms": [
+            "moral",
+            "law",
+            "legal",
+            "morality",
+            "paradox",
+            "normative",
+            "theory",
+            "pluralism",
+            "fiction",
+            "principles"
+          ],
+          "count": 1371
+        },
+        {
+          "id": 36,
+          "label": "Education \u00b7 Memory",
+          "terms": [
+            "education",
+            "memory",
+            "data",
+            "experimental",
+            "higher",
+            "educational",
+            "search",
+            "higher education",
+            "rule",
+            "hybrid"
+          ],
+          "count": 381
+        },
+        {
+          "id": 37,
+          "label": "Intelligence \u00b7 Artificial",
+          "terms": [
+            "intelligence",
+            "artificial",
+            "covid-",
+            "love",
+            "pandemic",
+            "artificial intelligence",
+            "comparative",
+            "open",
+            "covid- pandemic",
+            "anxiety"
+          ],
+          "count": 421
+        },
+        {
+          "id": 38,
+          "label": "Cognitive \u00b7 Experience",
+          "terms": [
+            "cognitive",
+            "experience",
+            "perception",
+            "cognition",
+            "phenomenology",
+            "perceptual",
+            "content",
+            "experiences",
+            "visual",
+            "phenomenological"
+          ],
+          "count": 2320
+        },
+        {
+          "id": 39,
+          "label": "Space \u00b7 Digital",
+          "terms": [
+            "space",
+            "digital",
+            "method",
+            "descartes",
+            "virtual",
+            "spatial",
+            "spaces",
+            "food",
+            "robots",
+            "counterfactual"
+          ],
+          "count": 249
+        },
+        {
+          "id": 40,
+          "label": "Epistemic \u00b7 Agency",
+          "terms": [
+            "epistemic",
+            "agency",
+            "rational",
+            "rationality",
+            "agents",
+            "norms",
+            "normative",
+            "agent",
+            "normativity",
+            "decision"
+          ],
+          "count": 1121
+        },
+        {
+          "id": 41,
+          "label": "Critique \u00b7 Power",
+          "terms": [
+            "critique",
+            "power",
+            "reason",
+            "intentional",
+            "radical",
+            "leibniz",
+            "doctrine",
+            "substance",
+            "pure",
+            "foucault"
+          ],
+          "count": 398
+        },
+        {
+          "id": 42,
+          "label": "Properties \u00b7 Aristotle",
+          "terms": [
+            "properties",
+            "aristotle",
+            "objects",
+            "phenomenal",
+            "external",
+            "property",
+            "things",
+            "distinction",
+            "object",
+            "essence"
+          ],
+          "count": 1376
+        },
+        {
+          "id": 43,
+          "label": "Action \u00b7 Group",
+          "terms": [
+            "action",
+            "group",
+            "groups",
+            "age",
+            "members",
+            "argumentation",
+            "birth",
+            "errors",
+            "competence",
+            "circle"
+          ],
+          "count": 192
+        },
+        {
+          "id": 44,
+          "label": "Emotions \u00b7 Hypothesis",
+          "terms": [
+            "emotions",
+            "hypothesis",
+            "risk",
+            "emotion",
+            "skeptical",
+            "theism",
+            "utility",
+            "smith",
+            "simulation",
+            "ordinary"
+          ],
+          "count": 292
+        },
+        {
+          "id": 45,
+          "label": "Death \u00b7 Narrative",
+          "terms": [
+            "death",
+            "narrative",
+            "disease",
+            "expert",
+            "presence",
+            "fear",
+            "diagnosis",
+            "feelings",
+            "joint",
+            "diseases"
+          ],
+          "count": 528
+        },
+        {
+          "id": 46,
+          "label": "Political \u00b7 Justice",
+          "terms": [
+            "political",
+            "justice",
+            "democracy",
+            "collective",
+            "democratic",
+            "state",
+            "liberal",
+            "theory",
+            "rights",
+            "politics"
+          ],
+          "count": 2272
+        },
+        {
+          "id": 47,
+          "label": "Neutrosophic \u00b7 Set",
+          "terms": [
+            "neutrosophic",
+            "set",
+            "luck",
+            "blame",
+            "sets",
+            "game",
+            "problems",
+            "ideal",
+            "games",
+            "diversity"
+          ],
+          "count": 410
+        },
+        {
+          "id": 48,
+          "label": "Human \u00b7 Problem",
+          "terms": [
+            "human",
+            "problem",
+            "consciousness",
+            "nature",
+            "rights",
+            "animals",
+            "animal",
+            "solution",
+            "humans",
+            "beings"
+          ],
+          "count": 1225
+        },
+        {
+          "id": 49,
+          "label": "Critical \u00b7 Freedom",
+          "terms": [
+            "critical",
+            "freedom",
+            "authority",
+            "security",
+            "analysis",
+            "privacy",
+            "conception",
+            "capital",
+            "united",
+            "promise"
+          ],
+          "count": 249
+        },
+        {
+          "id": 50,
+          "label": "Students \u00b7 Learning",
+          "terms": [
+            "students",
+            "learning",
+            "teaching",
+            "teachers",
+            "performance",
+            "academic",
+            "education",
+            "skills",
+            "school",
+            "high"
+          ],
+          "count": 940
+        },
+        {
+          "id": 51,
+          "label": "Psychology \u00b7 John",
+          "terms": [
+            "psychology",
+            "john",
+            "nietzsche",
+            "vision",
+            "defence",
+            "reviews",
+            "species",
+            "color",
+            "manipulation",
+            "sensitivity"
+          ],
+          "count": 276
+        },
+        {
+          "id": 52,
+          "label": "Identity \u00b7 Personal",
+          "terms": [
+            "identity",
+            "personal",
+            "beauty",
+            "psychological",
+            "persons",
+            "peirce",
+            "person",
+            "personal identity",
+            "continuity",
+            "identities"
+          ],
+          "count": 386
+        },
+        {
+          "id": 53,
+          "label": "Analogy \u00b7 Leadership",
+          "terms": [
+            "analogy",
+            "leadership",
+            "universities",
+            "organizational",
+            "implicit",
+            "commitment",
+            "employees",
+            "job",
+            "relative",
+            "criterion"
+          ],
+          "count": 226
+        },
+        {
+          "id": 54,
+          "label": "Philosophy \u00b7 History",
+          "terms": [
+            "philosophy",
+            "philosophical",
+            "history",
+            "modern",
+            "century",
+            "early",
+            "ideas",
+            "historical",
+            "philosophers",
+            "thought"
+          ],
+          "count": 5943
+        },
+        {
+          "id": 55,
+          "label": "Language \u00b7 Wittgenstein",
+          "terms": [
+            "language",
+            "wittgenstein",
+            "linguistic",
+            "case",
+            "categories",
+            "structure",
+            "hegel",
+            "wisdom",
+            "category",
+            "paul"
+          ],
+          "count": 370
+        },
+        {
+          "id": 56,
+          "label": "Awareness \u00b7 Dilemma",
+          "terms": [
+            "awareness",
+            "dilemma",
+            "force",
+            "direct",
+            "indirect",
+            "proof",
+            "reports",
+            "transparency",
+            "wrong",
+            "innovation"
+          ],
+          "count": 233
+        },
+        {
+          "id": 57,
+          "label": "Information \u00b7 Systems",
+          "terms": [
+            "information",
+            "systems",
+            "design",
+            "process",
+            "data",
+            "control",
+            "processes",
+            "integration",
+            "complex",
+            "quality"
+          ],
+          "count": 1083
+        },
+        {
+          "id": 58,
+          "label": "Models \u00b7 Mathematical",
+          "terms": [
+            "models",
+            "mathematical",
+            "mathematics",
+            "translation",
+            "computational",
+            "logics",
+            "theorem",
+            "numbers",
+            "foundations",
+            "machine"
+          ],
+          "count": 818
+        },
+        {
+          "id": 59,
+          "label": "Mental \u00b7 Causal",
+          "terms": [
+            "mental",
+            "causal",
+            "responsibility",
+            "causation",
+            "states",
+            "responsible",
+            "cause",
+            "moral responsibility",
+            "causes",
+            "aquinas"
+          ],
+          "count": 628
+        }
+      ]
+    },
+    {
+      "id": "lda_k100_default",
+      "granularity": "detailed",
+      "labelsFile": "lda_k100_default-labels.npy",
+      "method": {
+        "topicCount": 100,
+        "docTopicPrior": 0.01,
+        "topicWordPrior": 0.01,
+        "priorVariant": "default",
+        "learningMethod": "online",
+        "iterations": 25,
+        "vocabularySize": 14104,
+        "minDocumentFrequency": 20,
+        "maxDocumentFrequency": 0.5,
+        "ngramRange": [
+          1,
+          2
+        ]
+      },
+      "metrics": {
+        "heldOutPerplexity": 8344.187996751865,
+        "npmiCoherence": 0.23470684064433503,
+        "topicDiversity": 0.941,
+        "topicExclusivity": 0.8266798786328651,
+        "meanDominantProbability": 0.33612054575865863,
+        "topicStability": 0.4162321984767914,
+        "assignmentStabilityAri": 0.2191390659945217,
+        "finalScore": 0.5806486129241939
+      },
+      "topics": [
+        {
+          "id": 0,
+          "label": "Experience \u00b7 Phenomenology",
+          "terms": [
+            "experience",
+            "phenomenology",
+            "rationality",
+            "rational",
+            "experiences",
+            "attitudes",
+            "phenomenological",
+            "dilemma",
+            "attitude",
+            "husserl"
+          ],
+          "count": 914
+        },
+        {
+          "id": 1,
+          "label": "God \u00b7 Body",
+          "terms": [
+            "god",
+            "body",
+            "plato",
+            "worlds",
+            "soul",
+            "leibniz",
+            "possible",
+            "socrates",
+            "story",
+            "bodies"
+          ],
+          "count": 783
+        },
+        {
+          "id": 2,
+          "label": "Perspective \u00b7 Embodied",
+          "terms": [
+            "perspective",
+            "embodied",
+            "program",
+            "robust",
+            "identification",
+            "embodiment",
+            "embedded",
+            "themes",
+            "lecture",
+            "field"
+          ],
+          "count": 86
+        },
+        {
+          "id": 3,
+          "label": "Cognitive \u00b7 Probability",
+          "terms": [
+            "cognitive",
+            "cognition",
+            "probability",
+            "cognitive science",
+            "bayesian",
+            "reduction",
+            "probabilistic",
+            "chance",
+            "probabilities",
+            "duties"
+          ],
+          "count": 305
+        },
+        {
+          "id": 4,
+          "label": "Structure \u00b7 Wittgenstein",
+          "terms": [
+            "structure",
+            "wittgenstein",
+            "laws",
+            "universe",
+            "genetic",
+            "hypothesis",
+            "boundaries",
+            "challenge",
+            "metaphors",
+            "fundamental"
+          ],
+          "count": 436
+        },
+        {
+          "id": 5,
+          "label": "Thought \u00b7 Perceptual",
+          "terms": [
+            "thought",
+            "perceptual",
+            "experiments",
+            "species",
+            "experiment",
+            "enhancement",
+            "thought experiments",
+            "ecology",
+            "addiction",
+            "hobbes"
+          ],
+          "count": 365
+        },
+        {
+          "id": 6,
+          "label": "Data \u00b7 Performance",
+          "terms": [
+            "data",
+            "performance",
+            "management",
+            "relationship",
+            "significant",
+            "nigeria",
+            "factors",
+            "state",
+            "sample",
+            "level"
+          ],
+          "count": 509
+        },
+        {
+          "id": 7,
+          "label": "Principle \u00b7 Make",
+          "terms": [
+            "principle",
+            "make",
+            "people",
+            "good",
+            "reason",
+            "objection",
+            "action",
+            "act",
+            "think",
+            "better"
+          ],
+          "count": 4196
+        },
+        {
+          "id": 8,
+          "label": "Perception \u00b7 Property",
+          "terms": [
+            "perception",
+            "property",
+            "revolution",
+            "absolute",
+            "foucault",
+            "myth",
+            "self-consciousness",
+            "structures",
+            "perceptions",
+            "perceived"
+          ],
+          "count": 289
+        },
+        {
+          "id": 9,
+          "label": "Philosophy \u00b7 History",
+          "terms": [
+            "philosophy",
+            "philosophical",
+            "history",
+            "contemporary",
+            "philosophers",
+            "historical",
+            "century",
+            "thought",
+            "analytic",
+            "hegel"
+          ],
+          "count": 4612
+        },
+        {
+          "id": 10,
+          "label": "Discourse \u00b7 Modal",
+          "terms": [
+            "discourse",
+            "modal",
+            "john",
+            "modality",
+            "sensory",
+            "peter",
+            "qualities",
+            "van",
+            "traits",
+            "personality"
+          ],
+          "count": 229
+        },
+        {
+          "id": 11,
+          "label": "Theory \u00b7 Quantum",
+          "terms": [
+            "theory",
+            "quantum",
+            "evolution",
+            "evolutionary",
+            "biology",
+            "biological",
+            "mechanics",
+            "quantum mechanics",
+            "selection",
+            "relativity"
+          ],
+          "count": 1368
+        },
+        {
+          "id": 12,
+          "label": "Technology \u00b7 Development",
+          "terms": [
+            "technology",
+            "development",
+            "technologies",
+            "challenges",
+            "resources",
+            "business",
+            "financial",
+            "management",
+            "technological",
+            "data"
+          ],
+          "count": 2000
+        },
+        {
+          "id": 13,
+          "label": "Free \u00b7 Causal",
+          "terms": [
+            "free",
+            "causal",
+            "causation",
+            "cause",
+            "causes",
+            "determinism",
+            "effects",
+            "analogy",
+            "counterfactual",
+            "causality"
+          ],
+          "count": 593
+        },
+        {
+          "id": 14,
+          "label": "Moral \u00b7 Normative",
+          "terms": [
+            "moral",
+            "normative",
+            "responsibility",
+            "norms",
+            "morally",
+            "agents",
+            "agent",
+            "blame",
+            "responsible",
+            "moral responsibility"
+          ],
+          "count": 1633
+        },
+        {
+          "id": 15,
+          "label": "Treatment \u00b7 Heidegger",
+          "terms": [
+            "treatment",
+            "heidegger",
+            "virtual",
+            "illusion",
+            "young",
+            "aristotle's",
+            "ambiguity",
+            "resolution",
+            "deontic",
+            "marriage"
+          ],
+          "count": 133
+        },
+        {
+          "id": 16,
+          "label": "Korean Judicial \u00b7 Permissible",
+          "terms": [
+            "korean judicial",
+            "permissible",
+            "administration",
+            "die",
+            "theory",
+            "essences",
+            "und",
+            "axiological",
+            "permissibility",
+            "modification"
+          ],
+          "count": 98
+        },
+        {
+          "id": 17,
+          "label": "Psychology \u00b7 Theories",
+          "terms": [
+            "psychology",
+            "theories",
+            "empirical",
+            "psychological",
+            "philosophical",
+            "experimental",
+            "theoretical",
+            "common",
+            "methodological",
+            "foundations"
+          ],
+          "count": 986
+        },
+        {
+          "id": 18,
+          "label": "Studies \u00b7 Years",
+          "terms": [
+            "studies",
+            "years",
+            "participants",
+            "number",
+            "people",
+            "published",
+            "different",
+            "period",
+            "articles",
+            "korean"
+          ],
+          "count": 1461
+        },
+        {
+          "id": 19,
+          "label": "Death \u00b7 Infinite",
+          "terms": [
+            "death",
+            "infinite",
+            "formation",
+            "urban",
+            "fear",
+            "end",
+            "infinity",
+            "impossibility",
+            "return",
+            "eternal"
+          ],
+          "count": 219
+        },
+        {
+          "id": 20,
+          "label": "Model \u00b7 Machine",
+          "terms": [
+            "model",
+            "models",
+            "machine",
+            "risk",
+            "learning",
+            "modeling",
+            "network",
+            "based",
+            "computational",
+            "test"
+          ],
+          "count": 780
+        },
+        {
+          "id": 21,
+          "label": "Ethics \u00b7 Age",
+          "terms": [
+            "ethics",
+            "age",
+            "behavior",
+            "wisdom",
+            "church",
+            "business",
+            "virtue ethics",
+            "catholic",
+            "essentialism",
+            "middle"
+          ],
+          "count": 460
+        },
+        {
+          "id": 22,
+          "label": "Humanity \u00b7 Event",
+          "terms": [
+            "humanity",
+            "event",
+            "earth",
+            "sound",
+            "rich",
+            "room",
+            "variation",
+            "places",
+            "appreciation",
+            "mary"
+          ],
+          "count": 79
+        },
+        {
+          "id": 23,
+          "label": "Future \u00b7 Past",
+          "terms": [
+            "future",
+            "past",
+            "divine",
+            "time",
+            "temporal",
+            "existence",
+            "theism",
+            "south",
+            "events",
+            "africa"
+          ],
+          "count": 428
+        },
+        {
+          "id": 24,
+          "label": "Life \u00b7 Agency",
+          "terms": [
+            "life",
+            "agency",
+            "good",
+            "living",
+            "narrative",
+            "lives",
+            "well-being",
+            "meaning",
+            "meaningful",
+            "meaning life"
+          ],
+          "count": 310
+        },
+        {
+          "id": 25,
+          "label": "Social \u00b7 Media",
+          "terms": [
+            "social",
+            "media",
+            "covid-",
+            "pandemic",
+            "online",
+            "empathy",
+            "social media",
+            "limits",
+            "covid- pandemic",
+            "internet"
+          ],
+          "count": 462
+        },
+        {
+          "id": 26,
+          "label": "World \u00b7 External",
+          "terms": [
+            "world",
+            "external",
+            "behavior",
+            "civilization",
+            "times",
+            "modern",
+            "films",
+            "external world",
+            "resemblance",
+            "poetic"
+          ],
+          "count": 124
+        },
+        {
+          "id": 27,
+          "label": "Critical \u00b7 Disagreement",
+          "terms": [
+            "critical",
+            "disagreement",
+            "radical",
+            "politics",
+            "vision",
+            "essay",
+            "searle",
+            "ecological",
+            "seeing",
+            "marx"
+          ],
+          "count": 341
+        },
+        {
+          "id": 28,
+          "label": "Kant \u00b7 Objects",
+          "terms": [
+            "kant",
+            "objects",
+            "reason",
+            "kantian",
+            "negative",
+            "ideal",
+            "transcendental",
+            "kant's",
+            "positive",
+            "conception"
+          ],
+          "count": 908
+        },
+        {
+          "id": 29,
+          "label": "Evidence \u00b7 Claim",
+          "terms": [
+            "evidence",
+            "claim",
+            "beliefs",
+            "thesis",
+            "claims",
+            "cases",
+            "according",
+            "true",
+            "theory",
+            "theories"
+          ],
+          "count": 7369
+        },
+        {
+          "id": 30,
+          "label": "Women \u00b7 Gender",
+          "terms": [
+            "women",
+            "gender",
+            "desire",
+            "sexual",
+            "definition",
+            "sex",
+            "consent",
+            "desires",
+            "men",
+            "forgiveness"
+          ],
+          "count": 345
+        },
+        {
+          "id": 31,
+          "label": "Knowledge \u00b7 Epistemology",
+          "terms": [
+            "knowledge",
+            "epistemology",
+            "know",
+            "necessity",
+            "necessary",
+            "knowing",
+            "epistemological",
+            "condition",
+            "assertion",
+            "priori"
+          ],
+          "count": 786
+        },
+        {
+          "id": 32,
+          "label": "Real \u00b7 Emergence",
+          "terms": [
+            "real",
+            "emergence",
+            "family",
+            "film",
+            "idealism",
+            "mark",
+            "home",
+            "solving",
+            "modernity",
+            "forces"
+          ],
+          "count": 176
+        },
+        {
+          "id": 33,
+          "label": "Faith \u00b7 Intentional",
+          "terms": [
+            "faith",
+            "intentional",
+            "injustice",
+            "subjectivity",
+            "oppression",
+            "kierkegaard",
+            "sphere",
+            "paradoxes",
+            "victims",
+            "lost"
+          ],
+          "count": 183
+        },
+        {
+          "id": 34,
+          "label": "Self \u00b7 Autonomy",
+          "terms": [
+            "self",
+            "autonomy",
+            "bias",
+            "substance",
+            "character",
+            "implicit",
+            "simulation",
+            "constitution",
+            "williams",
+            "bioethics"
+          ],
+          "count": 230
+        },
+        {
+          "id": 35,
+          "label": "Law \u00b7 Religious",
+          "terms": [
+            "law",
+            "religious",
+            "legal",
+            "religion",
+            "naturalism",
+            "error",
+            "uncertainty",
+            "judicial",
+            "islamic",
+            "debunking"
+          ],
+          "count": 592
+        },
+        {
+          "id": 36,
+          "label": "Reference \u00b7 Types",
+          "terms": [
+            "reference",
+            "types",
+            "hume",
+            "skepticism",
+            "skeptical",
+            "type",
+            "images",
+            "induction",
+            "symbolic",
+            "abstraction"
+          ],
+          "count": 268
+        },
+        {
+          "id": 37,
+          "label": "Case \u00b7 Love",
+          "terms": [
+            "case",
+            "love",
+            "sciences",
+            "comparative",
+            "studies",
+            "european",
+            "europe",
+            "social sciences",
+            "humanities",
+            "innovation"
+          ],
+          "count": 228
+        },
+        {
+          "id": 38,
+          "label": "Decision \u00b7 Making",
+          "terms": [
+            "decision",
+            "making",
+            "decisions",
+            "clinical",
+            "subjects",
+            "loss",
+            "activity",
+            "strength",
+            "disorders",
+            "diagnosis"
+          ],
+          "count": 182
+        },
+        {
+          "id": 39,
+          "label": "Digital \u00b7 Transformation",
+          "terms": [
+            "digital",
+            "transformation",
+            "pragmatism",
+            "dispositions",
+            "ideology",
+            "basic",
+            "robert",
+            "america",
+            "pragmatist",
+            "solidarity"
+          ],
+          "count": 138
+        },
+        {
+          "id": 40,
+          "label": "Building \u00b7 Fiction",
+          "terms": [
+            "building",
+            "fiction",
+            "energy",
+            "utility",
+            "expected",
+            "rethinking",
+            "patterns",
+            "consumption",
+            "utilitarianism",
+            "cost"
+          ],
+          "count": 155
+        },
+        {
+          "id": 41,
+          "label": "Objective \u00b7 Intuition",
+          "terms": [
+            "objective",
+            "intuition",
+            "subjective",
+            "dynamic",
+            "propositional",
+            "disability",
+            "qualitative",
+            "contextual",
+            "situated",
+            "worldview"
+          ],
+          "count": 139
+        },
+        {
+          "id": 42,
+          "label": "Science \u00b7 Humans",
+          "terms": [
+            "science",
+            "scientific",
+            "philosophy science",
+            "scientists",
+            "humans",
+            "man",
+            "conspiracy",
+            "animals",
+            "theories",
+            "non-human"
+          ],
+          "count": 417
+        },
+        {
+          "id": 43,
+          "label": "Belief \u00b7 Group",
+          "terms": [
+            "belief",
+            "group",
+            "groups",
+            "collective",
+            "individual",
+            "individuals",
+            "members",
+            "cartesian",
+            "revision",
+            "origins"
+          ],
+          "count": 247
+        },
+        {
+          "id": 44,
+          "label": "Force \u00b7 James",
+          "terms": [
+            "force",
+            "james",
+            "indian",
+            "motion",
+            "dualism",
+            "deliberation",
+            "william",
+            "brief",
+            "vice",
+            "revisited"
+          ],
+          "count": 188
+        },
+        {
+          "id": 45,
+          "label": "Information \u00b7 Systems",
+          "terms": [
+            "information",
+            "systems",
+            "brain",
+            "visual",
+            "mechanisms",
+            "processes",
+            "attention",
+            "functions",
+            "mechanism",
+            "expert"
+          ],
+          "count": 1247
+        },
+        {
+          "id": 46,
+          "label": "Political \u00b7 Justice",
+          "terms": [
+            "political",
+            "justice",
+            "rights",
+            "state",
+            "democracy",
+            "democratic",
+            "liberal",
+            "society",
+            "theory",
+            "social"
+          ],
+          "count": 2360
+        },
+        {
+          "id": 47,
+          "label": "Intellectual \u00b7 Neutrosophic",
+          "terms": [
+            "intellectual",
+            "neutrosophic",
+            "sets",
+            "set",
+            "luck",
+            "virtues",
+            "cambridge",
+            "direct",
+            "indirect",
+            "double"
+          ],
+          "count": 350
+        },
+        {
+          "id": 48,
+          "label": "Solution \u00b7 Choice",
+          "terms": [
+            "solution",
+            "choice",
+            "rule",
+            "thomas",
+            "aquinas",
+            "behaviour",
+            "problem",
+            "alternative",
+            "possibilities",
+            "richard"
+          ],
+          "count": 216
+        },
+        {
+          "id": 49,
+          "label": "Shared \u00b7 Lessons",
+          "terms": [
+            "shared",
+            "lessons",
+            "partial",
+            "smith",
+            "geometry",
+            "mixed",
+            "pattern",
+            "davidson",
+            "guilt",
+            "default"
+          ],
+          "count": 131
+        },
+        {
+          "id": 50,
+          "label": "Mathematics \u00b7 Recognition",
+          "terms": [
+            "mathematics",
+            "recognition",
+            "locke",
+            "big",
+            "ought",
+            "reliability",
+            "gaps",
+            "cooperative",
+            "epistemic value",
+            "george"
+          ],
+          "count": 164
+        },
+        {
+          "id": 51,
+          "label": "Christian \u00b7 Dialogue",
+          "terms": [
+            "christian",
+            "dialogue",
+            "paradigm",
+            "diversity",
+            "reflections",
+            "perspectives",
+            "anthropology",
+            "volume",
+            "manipulation",
+            "birth"
+          ],
+          "count": 199
+        },
+        {
+          "id": 52,
+          "label": "African \u00b7 Western",
+          "terms": [
+            "african",
+            "western",
+            "authority",
+            "relational",
+            "action",
+            "image",
+            "aesthetics",
+            "peirce",
+            "gap",
+            "nihilism"
+          ],
+          "count": 292
+        },
+        {
+          "id": 53,
+          "label": "Truth \u00b7 Interpretation",
+          "terms": [
+            "truth",
+            "interpretation",
+            "ontological",
+            "grounding",
+            "criterion",
+            "dependence",
+            "composition",
+            "interpretations",
+            "hermeneutics",
+            "varieties"
+          ],
+          "count": 406
+        },
+        {
+          "id": 54,
+          "label": "Hope \u00b7 Relevance",
+          "terms": [
+            "hope",
+            "relevance",
+            "feminist",
+            "movement",
+            "essays",
+            "local",
+            "collection",
+            "architecture",
+            "audience",
+            "movements"
+          ],
+          "count": 177
+        },
+        {
+          "id": 55,
+          "label": "Health \u00b7 Public",
+          "terms": [
+            "health",
+            "public",
+            "mental",
+            "disease",
+            "liberalism",
+            "anxiety",
+            "abortion",
+            "mental health",
+            "stress",
+            "public health"
+          ],
+          "count": 266
+        },
+        {
+          "id": 56,
+          "label": "Value \u00b7 Interaction",
+          "terms": [
+            "value",
+            "interaction",
+            "corporate",
+            "everyday",
+            "british",
+            "reductionism",
+            "instrumental",
+            "market",
+            "jewish",
+            "accountability"
+          ],
+          "count": 151
+        },
+        {
+          "id": 57,
+          "label": "Virtue \u00b7 Justification",
+          "terms": [
+            "virtue",
+            "justification",
+            "imagination",
+            "internal",
+            "aristotelian",
+            "patient",
+            "fictional",
+            "external",
+            "internalism",
+            "externalism"
+          ],
+          "count": 274
+        },
+        {
+          "id": 58,
+          "label": "Language \u00b7 Conceptual",
+          "terms": [
+            "language",
+            "conceptual",
+            "analysis",
+            "linguistic",
+            "english",
+            "rules",
+            "translation",
+            "inference",
+            "text",
+            "natural"
+          ],
+          "count": 542
+        },
+        {
+          "id": 59,
+          "label": "Power \u00b7 Violence",
+          "terms": [
+            "power",
+            "violence",
+            "welfare",
+            "hybrid",
+            "sovereignty",
+            "killing",
+            "augustine",
+            "really",
+            "touch",
+            "court"
+          ],
+          "count": 220
+        },
+        {
+          "id": 60,
+          "label": "Reflection \u00b7 Frege",
+          "terms": [
+            "reflection",
+            "frege",
+            "requirement",
+            "report",
+            "reflective",
+            "picture",
+            "mapping",
+            "money",
+            "universals",
+            "items"
+          ],
+          "count": 91
+        },
+        {
+          "id": 61,
+          "label": "Mathematical \u00b7 Care",
+          "terms": [
+            "mathematical",
+            "care",
+            "medical",
+            "practice",
+            "medicine",
+            "patients",
+            "numbers",
+            "healthcare",
+            "vagueness",
+            "health"
+          ],
+          "count": 337
+        },
+        {
+          "id": 62,
+          "label": "Understanding \u00b7 Role",
+          "terms": [
+            "understanding",
+            "role",
+            "personal",
+            "values",
+            "framework",
+            "play",
+            "practices",
+            "context",
+            "process",
+            "ways"
+          ],
+          "count": 2774
+        },
+        {
+          "id": 63,
+          "label": "Freedom \u00b7 Function",
+          "terms": [
+            "freedom",
+            "function",
+            "harm",
+            "american",
+            "existential",
+            "obligations",
+            "obligation",
+            "white",
+            "wave",
+            "great"
+          ],
+          "count": 281
+        },
+        {
+          "id": 64,
+          "label": "Education \u00b7 Students",
+          "terms": [
+            "education",
+            "students",
+            "learning",
+            "school",
+            "teaching",
+            "teachers",
+            "academic",
+            "educational",
+            "higher",
+            "skills"
+          ],
+          "count": 1252
+        },
+        {
+          "id": 65,
+          "label": "Logic \u00b7 Classical",
+          "terms": [
+            "logic",
+            "logical",
+            "classical",
+            "proof",
+            "logics",
+            "theorem",
+            "formal",
+            "theory",
+            "modal",
+            "validity"
+          ],
+          "count": 1415
+        },
+        {
+          "id": 66,
+          "label": "Right \u00b7 Punishment",
+          "terms": [
+            "right",
+            "punishment",
+            "criminal",
+            "german",
+            "consensus",
+            "dignity",
+            "enlightenment",
+            "capital",
+            "crime",
+            "left"
+          ],
+          "count": 178
+        },
+        {
+          "id": 67,
+          "label": "Relations \u00b7 Early",
+          "terms": [
+            "relations",
+            "emotions",
+            "early",
+            "emotional",
+            "emotion",
+            "affective",
+            "russell",
+            "feeling",
+            "names",
+            "extension"
+          ],
+          "count": 331
+        },
+        {
+          "id": 68,
+          "label": "Reasons \u00b7 Vietnam",
+          "terms": [
+            "reasons",
+            "vietnam",
+            "lewis",
+            "competence",
+            "vietnamese",
+            "bridge",
+            "defeat",
+            "party",
+            "mirror",
+            "joseph"
+          ],
+          "count": 199
+        },
+        {
+          "id": 69,
+          "label": "Concept \u00b7 Different",
+          "terms": [
+            "concept",
+            "different",
+            "things",
+            "sense",
+            "thinking",
+            "notion",
+            "terms",
+            "form",
+            "idea",
+            "like"
+          ],
+          "count": 6515
+        },
+        {
+          "id": 70,
+          "label": "Cultural \u00b7 Ancient",
+          "terms": [
+            "cultural",
+            "culture",
+            "ancient",
+            "buddhist",
+            "chinese",
+            "greek",
+            "metaphor",
+            "china",
+            "buddhism",
+            "cultures"
+          ],
+          "count": 397
+        },
+        {
+          "id": 71,
+          "label": "Puzzle \u00b7 Versus",
+          "terms": [
+            "puzzle",
+            "versus",
+            "news",
+            "interpersonal",
+            "vulnerable",
+            "fake",
+            "code",
+            "paternalism",
+            "self-deception",
+            "fake news"
+          ],
+          "count": 122
+        },
+        {
+          "id": 72,
+          "label": "Awareness \u00b7 Thoughts",
+          "terms": [
+            "awareness",
+            "thoughts",
+            "ignorance",
+            "david",
+            "robots",
+            "unconscious",
+            "abilities",
+            "hierarchy",
+            "labor",
+            "robot"
+          ],
+          "count": 152
+        },
+        {
+          "id": 73,
+          "label": "Critique \u00b7 Oxford",
+          "terms": [
+            "critique",
+            "oxford",
+            "defence",
+            "pure",
+            "expertise",
+            "isbn",
+            "dialectical",
+            "engineering",
+            "pages",
+            "experts"
+          ],
+          "count": 286
+        },
+        {
+          "id": 74,
+          "label": "War \u00b7 Judgments",
+          "terms": [
+            "war",
+            "judgments",
+            "race",
+            "game",
+            "just",
+            "games",
+            "military",
+            "talk",
+            "racial",
+            "scepticism"
+          ],
+          "count": 256
+        },
+        {
+          "id": 75,
+          "label": "Identity \u00b7 Communication",
+          "terms": [
+            "identity",
+            "communication",
+            "crisis",
+            "water",
+            "poverty",
+            "communicative",
+            "hegel's",
+            "solve",
+            "substances",
+            "coordination"
+          ],
+          "count": 157
+        },
+        {
+          "id": 76,
+          "label": "Material \u00b7 Hard",
+          "terms": [
+            "material",
+            "hard",
+            "black",
+            "powers",
+            "conditional",
+            "conditionals",
+            "materialism",
+            "speculative",
+            "wellbeing",
+            "hard problem"
+          ],
+          "count": 194
+        },
+        {
+          "id": 77,
+          "label": "Method \u00b7 Descartes",
+          "terms": [
+            "method",
+            "descartes",
+            "creativity",
+            "creative",
+            "weight",
+            "relative",
+            "light",
+            "analytical",
+            "police",
+            "save"
+          ],
+          "count": 174
+        },
+        {
+          "id": 78,
+          "label": "Meaning \u00b7 Paradox",
+          "terms": [
+            "meaning",
+            "paradox",
+            "true",
+            "words",
+            "doctrine",
+            "context",
+            "word",
+            "subject",
+            "object",
+            "objectivity"
+          ],
+          "count": 533
+        },
+        {
+          "id": 79,
+          "label": "Ontology \u00b7 Representation",
+          "terms": [
+            "ontology",
+            "representation",
+            "formal",
+            "domain",
+            "ontological",
+            "ontologies",
+            "entities",
+            "integration",
+            "multiple",
+            "domains"
+          ],
+          "count": 370
+        },
+        {
+          "id": 80,
+          "label": "Global \u00b7 Change",
+          "terms": [
+            "global",
+            "change",
+            "policy",
+            "climate",
+            "economic",
+            "public",
+            "environmental",
+            "trust",
+            "climate change",
+            "economics"
+          ],
+          "count": 1415
+        },
+        {
+          "id": 81,
+          "label": "Art \u00b7 Development",
+          "terms": [
+            "art",
+            "development",
+            "design",
+            "project",
+            "modern",
+            "economy",
+            "search",
+            "projects",
+            "creation",
+            "guide"
+          ],
+          "count": 477
+        },
+        {
+          "id": 82,
+          "label": "Control \u00b7 Community",
+          "terms": [
+            "control",
+            "community",
+            "judgment",
+            "intention",
+            "intentions",
+            "preferences",
+            "preference",
+            "representations",
+            "contextualism",
+            "symmetry"
+          ],
+          "count": 158
+        },
+        {
+          "id": 83,
+          "label": "Ethical \u00b7 Principles",
+          "terms": [
+            "ethical",
+            "principles",
+            "morality",
+            "progress",
+            "issues",
+            "relativism",
+            "ethics",
+            "moral",
+            "universal",
+            "dewey"
+          ],
+          "count": 560
+        },
+        {
+          "id": 84,
+          "label": "Intelligence \u00b7 Artificial",
+          "terms": [
+            "intelligence",
+            "artificial",
+            "artificial intelligence",
+            "systems",
+            "music",
+            "human",
+            "michael",
+            "machines",
+            "musical",
+            "autonomous"
+          ],
+          "count": 380
+        },
+        {
+          "id": 85,
+          "label": "Problem \u00b7 Explanation",
+          "terms": [
+            "problem",
+            "explanation",
+            "problems",
+            "realism",
+            "explanations",
+            "kinds",
+            "explanatory",
+            "solutions",
+            "realist",
+            "natural"
+          ],
+          "count": 701
+        },
+        {
+          "id": 86,
+          "label": "Metaphysics \u00b7 Scientific",
+          "terms": [
+            "metaphysics",
+            "metaphysical",
+            "scientific",
+            "debate",
+            "open",
+            "commentary",
+            "comments",
+            "essence",
+            "immigration",
+            "migration"
+          ],
+          "count": 252
+        },
+        {
+          "id": 87,
+          "label": "Epistemic \u00b7 Testimony",
+          "terms": [
+            "epistemic",
+            "testimony",
+            "doxastic",
+            "epistemically",
+            "injustice",
+            "epistemic injustice",
+            "resistance",
+            "belief",
+            "credence",
+            "normativity"
+          ],
+          "count": 438
+        },
+        {
+          "id": 88,
+          "label": "Evil \u00b7 Pain",
+          "terms": [
+            "evil",
+            "pain",
+            "suffering",
+            "pleasure",
+            "discrimination",
+            "conservation",
+            "problem evil",
+            "theodicy",
+            "feel",
+            "attacks"
+          ],
+          "count": 250
+        },
+        {
+          "id": 89,
+          "label": "Pragmatic \u00b7 Beauty",
+          "terms": [
+            "pragmatic",
+            "beauty",
+            "monism",
+            "journal",
+            "neutral",
+            "controversy",
+            "land",
+            "harmony",
+            "moving",
+            "professor"
+          ],
+          "count": 130
+        },
+        {
+          "id": 90,
+          "label": "Properties \u00b7 Children",
+          "terms": [
+            "properties",
+            "children",
+            "reading",
+            "speech",
+            "structural",
+            "happiness",
+            "child",
+            "privacy",
+            "literary",
+            "acts"
+          ],
+          "count": 256
+        },
+        {
+          "id": 91,
+          "label": "Animal \u00b7 Nietzsche",
+          "terms": [
+            "animal",
+            "nietzsche",
+            "animals",
+            "style",
+            "comment",
+            "schopenhauer",
+            "humean",
+            "inconsistency",
+            "expressive",
+            "nietzsche's"
+          ],
+          "count": 223
+        },
+        {
+          "id": 92,
+          "label": "Semantic \u00b7 Memory",
+          "terms": [
+            "semantic",
+            "memory",
+            "semantics",
+            "expressions",
+            "expression",
+            "poetry",
+            "green",
+            "memories",
+            "persistence",
+            "pragmatics"
+          ],
+          "count": 334
+        },
+        {
+          "id": 93,
+          "label": "Consciousness \u00b7 Mind",
+          "terms": [
+            "consciousness",
+            "mind",
+            "mental",
+            "aesthetic",
+            "states",
+            "phenomenal",
+            "conscious",
+            "content",
+            "experience",
+            "intentionality"
+          ],
+          "count": 1660
+        },
+        {
+          "id": 94,
+          "label": "Practical \u00b7 Reasoning",
+          "terms": [
+            "practical",
+            "reasoning",
+            "note",
+            "dominance",
+            "practical reasoning",
+            "anthropocene",
+            "anscombe",
+            "jury",
+            "multiverse",
+            "interpretative"
+          ],
+          "count": 126
+        },
+        {
+          "id": 95,
+          "label": "Human \u00b7 Nature",
+          "terms": [
+            "human",
+            "nature",
+            "natural",
+            "physics",
+            "physical",
+            "reality",
+            "beings",
+            "matter",
+            "pluralism",
+            "human beings"
+          ],
+          "count": 1323
+        },
+        {
+          "id": 96,
+          "label": "Unity \u00b7 Priority",
+          "terms": [
+            "unity",
+            "priority",
+            "continuity",
+            "edition",
+            "lies",
+            "errors",
+            "distributive",
+            "predictive",
+            "concrete",
+            "distributive justice"
+          ],
+          "count": 130
+        },
+        {
+          "id": 97,
+          "label": "Time \u00b7 Space",
+          "terms": [
+            "time",
+            "space",
+            "levels",
+            "spatial",
+            "spaces",
+            "workers",
+            "space time",
+            "conversation",
+            "plan",
+            "families"
+          ],
+          "count": 262
+        },
+        {
+          "id": 98,
+          "label": "Spinoza \u00b7 Ideas",
+          "terms": [
+            "spinoza",
+            "ideas",
+            "complexity",
+            "computer",
+            "deleuze",
+            "friendship",
+            "artifacts",
+            "discovery",
+            "teleological",
+            "cancer"
+          ],
+          "count": 288
+        },
+        {
+          "id": 99,
+          "label": "Concepts \u00b7 Aristotle",
+          "terms": [
+            "concepts",
+            "aristotle",
+            "status",
+            "person",
+            "categories",
+            "persons",
+            "normativity",
+            "argumentation",
+            "category",
+            "moral status"
+          ],
+          "count": 278
+        }
+      ]
+    }
+  ]
+}

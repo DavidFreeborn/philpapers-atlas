@@ -30,7 +30,7 @@ type Cluster = {
 };
 
 type LensMethod = {
-  pcaDimensions: number;
+  pcaDimensions?: number;
   sourceUmapDimensions?: number;
   umapDimensions?: number;
   clusteringSpace?: 'display2d';
@@ -38,6 +38,16 @@ type LensMethod = {
   minSamples?: number;
   selectionMethod?: 'eom' | 'leaf';
   k?: number;
+  topicCount?: number;
+  vocabularySize?: number;
+  minDocumentFrequency?: number;
+  maxDocumentFrequency?: number;
+  ngramRange?: [number, number];
+  docTopicPrior?: number;
+  topicWordPrior?: number;
+  priorVariant?: string;
+  learningMethod?: 'online' | 'batch';
+  iterations?: number;
 };
 
 type LensMetrics = {
@@ -50,13 +60,21 @@ type LensMetrics = {
   silhouetteCosine?: number;
   daviesBouldin?: number;
   calinskiHarabasz?: number;
+  heldOutPerplexity?: number;
+  npmiCoherence?: number;
+  topicDiversity?: number;
+  topicExclusivity?: number;
+  meanDominantProbability?: number;
+  topicStability?: number;
+  assignmentStabilityAri?: number;
+  finalScore?: number;
 };
 
 type Lens = {
   id: string;
   name: string;
   optionLabel: string;
-  algorithm: 'hdbscan' | 'kmeans';
+  algorithm: 'hdbscan' | 'kmeans' | 'lda';
   preferred: boolean;
   labelsFile: string;
   clusterCount: number;
@@ -168,32 +186,51 @@ function formatDecimal(value: number | undefined, digits = 3): string {
 function MethodContent({ lens }: { lens: Lens }) {
   const method = lens.method;
   const usesDisplaySpace = method.clusteringSpace === 'display2d';
+  const isLda = lens.algorithm === 'lda';
   return (
     <>
       <p className="method-heading">Parameters</p>
       <dl className="method-table">
-        <div><dt>Input</dt><dd>SPECTER embeddings · 768D</dd></div>
-        <div><dt>PCA</dt><dd>{method.pcaDimensions}D</dd></div>
-        {lens.algorithm === 'hdbscan' ? (
-          usesDisplaySpace ? (
-            <>
-              <div><dt>UMAP preprocessing</dt><dd>{method.sourceUmapDimensions}D · cosine · 15 neighbours · min. distance 0</dd></div>
-              <div><dt>Clustering space</dt><dd>fixed 2D display UMAP · 15 neighbours · min. distance 0.1</dd></div>
-              <div><dt>HDBSCAN</dt><dd>min. cluster size {method.minClusterSize} · min. samples {method.minSamples} · {method.selectionMethod?.toUpperCase()}</dd></div>
-            </>
-          ) : (
-            <>
-              <div><dt>UMAP</dt><dd>{method.umapDimensions}D · cosine · 15 neighbours · min. distance 0</dd></div>
-              <div><dt>HDBSCAN</dt><dd>min. cluster size {method.minClusterSize} · min. samples {method.minSamples}</dd></div>
-            </>
-          )
+        {isLda ? (
+          <>
+            <div><dt>Input</dt><dd>titles (×2) and abstracts</dd></div>
+            <div><dt>Vocabulary</dt><dd>{formatNumber(method.vocabularySize ?? 0)} unigrams and bigrams · min. {method.minDocumentFrequency} papers</dd></div>
+            <div><dt>LDA</dt><dd><i>k</i> = {method.topicCount} · {method.learningMethod} · {method.iterations} iterations</dd></div>
+            <div><dt>Priors</dt><dd>α = {formatDecimal(method.docTopicPrior, 3)} · η = {formatDecimal(method.topicWordPrior, 3)}</dd></div>
+          </>
         ) : (
-          <div><dt>K-means</dt><dd><i>k</i> = {method.k}</dd></div>
+          <>
+            <div><dt>Input</dt><dd>SPECTER embeddings · 768D</dd></div>
+            <div><dt>PCA</dt><dd>{method.pcaDimensions}D</dd></div>
+            {lens.algorithm === 'hdbscan' ? (
+              usesDisplaySpace ? (
+                <>
+                  <div><dt>UMAP preprocessing</dt><dd>{method.sourceUmapDimensions}D · cosine · 15 neighbours · min. distance 0</dd></div>
+                  <div><dt>Clustering space</dt><dd>fixed 2D display UMAP · 15 neighbours · min. distance 0.1</dd></div>
+                  <div><dt>HDBSCAN</dt><dd>min. cluster size {method.minClusterSize} · min. samples {method.minSamples} · {method.selectionMethod?.toUpperCase()}</dd></div>
+                </>
+              ) : (
+                <>
+                  <div><dt>UMAP</dt><dd>{method.umapDimensions}D · cosine · 15 neighbours · min. distance 0</dd></div>
+                  <div><dt>HDBSCAN</dt><dd>min. cluster size {method.minClusterSize} · min. samples {method.minSamples}</dd></div>
+                </>
+              )
+            ) : (
+              <div><dt>K-means</dt><dd><i>k</i> = {method.k}</dd></div>
+            )}
+          </>
         )}
       </dl>
       <p className="method-heading metrics-heading">Metrics</p>
       <dl className="method-metrics">
-        {lens.algorithm === 'hdbscan' ? (
+        {isLda ? (
+          <>
+            <div title="NPMI coherence of the most probable words in held-out papers; higher is better."><dt>Held-out NPMI coherence</dt><dd>{formatDecimal(lens.metrics.npmiCoherence)}</dd></div>
+            <div title="Per-word perplexity on the sealed test set; lower is better and comparisons are meaningful within these LDA models."><dt>Held-out perplexity</dt><dd>{lens.metrics.heldOutPerplexity === undefined ? '—' : formatNumber(Math.round(lens.metrics.heldOutPerplexity))}</dd></div>
+            <div title="Mean cosine similarity of matched topic-word distributions across three random seeds; higher is better."><dt>Topic stability</dt><dd>{formatDecimal(lens.metrics.topicStability)}</dd></div>
+            <div title="Mean adjusted Rand agreement between dominant-topic paper assignments across three random seeds; higher is better."><dt>Assignment agreement (ARI)</dt><dd>{formatDecimal(lens.metrics.assignmentStabilityAri)}</dd></div>
+          </>
+        ) : lens.algorithm === 'hdbscan' ? (
           usesDisplaySpace ? (
             <>
               <div title="Mean HDBSCAN membership strength among assigned papers; higher is better."><dt>Mean membership strength</dt><dd>{formatDecimal(lens.metrics.meanMembership)}</dd></div>
@@ -947,7 +984,7 @@ export default function Atlas() {
         </div>
 
         <div className="header-actions">
-          <button className="mobile-panel-button" onClick={() => setShowLegend(true)}>Clusters</button>
+          <button className="mobile-panel-button" onClick={() => setShowLegend(true)}>{activeLens?.algorithm === 'lda' ? 'Topics' : 'Clusters'}</button>
         </div>
       </header>
 
@@ -976,12 +1013,17 @@ export default function Atlas() {
                   <option key={lens.id} value={lens.id}>{lens.optionLabel}</option>
                 ))}
               </optgroup>
+              <optgroup label="LDA topic lenses">
+                {lensCatalog?.lenses.filter((lens) => lens.algorithm === 'lda').map((lens) => (
+                  <option key={lens.id} value={lens.id}>{lens.optionLabel}</option>
+                ))}
+              </optgroup>
             </select>
             {lensLoadingId && <p className="lens-message">Loading lens…</p>}
             {lensError && <p className="lens-message lens-error">{lensError}</p>}
           </div>
           <div className="panel-heading">
-            <h2>Clusters <span>{activeLens?.clusterCount ?? '—'}</span></h2>
+            <h2>{activeLens?.algorithm === 'lda' ? 'Topics' : 'Clusters'} <span>{activeLens?.clusterCount ?? '—'}</span></h2>
             <button className="panel-close" onClick={() => setShowLegend(false)} aria-label="Close cluster panel">×</button>
           </div>
           <button
@@ -1132,7 +1174,11 @@ export default function Atlas() {
         </div>
 
         <aside className={`paper-panel ${showInspector ? 'panel-open' : ''}`}>
-          <button className="panel-close inspector-close" onClick={() => setShowInspector(false)} aria-label="Close details panel">×</button>
+          <button
+            className={`panel-close inspector-close ${selectedIndex !== null ? 'paper-selected-close' : ''}`}
+            onClick={() => selectedIndex !== null ? setSelectedIndex(null) : setShowInspector(false)}
+            aria-label={selectedIndex !== null ? 'Back to cluster overview' : 'Close details panel'}
+          >×</button>
 
           <div className="paper-panel-content">
             {selectedIndex !== null ? (
@@ -1167,13 +1213,13 @@ export default function Atlas() {
                     Open on PhilPapers <span aria-hidden="true">↗</span>
                   </a>
                 )}
-                <button className="secondary-link" onClick={() => setSelectedIndex(null)}>Back to cluster overview</button>
+                <button className="secondary-link" onClick={() => setSelectedIndex(null)}>Back</button>
               </article>
             ) : activeCluster !== null && selectedCluster ? (
               <article className="cluster-detail">
                 <div className="cluster-orb" style={{ background: clusterColor(selectedCluster.id, clusterById) }} />
                 <h3>{selectedCluster.label}</h3>
-                <p><strong>{formatNumber(selectedCluster.count)}</strong> papers assigned to this cluster.</p>
+                <p><strong>{formatNumber(selectedCluster.count)}</strong> papers assigned to this {activeLens?.algorithm === 'lda' ? 'topic' : 'cluster'}.</p>
                 <section>
                   <p className="eyebrow">Characteristic terms</p>
                   <div className="term-list">
@@ -1191,11 +1237,13 @@ export default function Atlas() {
                       : `HDBSCAN · UMAP ${activeLens.method.umapDimensions}D`
                     : activeLens?.algorithm === 'kmeans'
                       ? `K-means · PCA ${activeLens.method.pcaDimensions}D`
+                      : activeLens?.algorithm === 'lda'
+                        ? `LDA · ${activeLens.method.topicCount} topics`
                       : 'Clustering lens'}
                 </h3>
                 {activeLens && (
                   <p className="lens-outcome">
-                    <strong>{activeLens.clusterCount}</strong> clusters
+                    <strong>{activeLens.clusterCount}</strong> {activeLens.algorithm === 'lda' ? 'topics' : 'clusters'}
                     <span>·</span>
                     <strong>{activeLens.noisePct.toFixed(1)}%</strong> unassigned
                   </p>

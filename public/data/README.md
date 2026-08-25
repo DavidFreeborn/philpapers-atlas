@@ -1,7 +1,7 @@
 # Generated PhilPapers Atlas data
 
-These files are generated from the saved PhilPapers clustering artefacts.
-The application does not refit PCA, UMAP, HDBSCAN, or k-means.
+These files are generated from the saved PhilPapers clustering and topic-model artefacts.
+The application does not refit PCA, UMAP, HDBSCAN, k-means, or LDA.
 
 - `map.json`: saved two-dimensional UMAP coordinates and HDBSCAN labels.
 - `clusters.json`: reviewed cluster names, sizes, and TF-IDF terms.
@@ -16,4 +16,7 @@ the seven saved inputs named in that script. Regenerate the clustering lenses wi
 `scripts/build-lenses-data.py` and a source directory containing Prajakta's saved
 label arrays, reviewed names, TF-IDF terms, and metric tables. The additional
 display-space HDBSCAN labels and scan metrics are stored under `analysis/` and
-can be reproduced with `scripts/scan-hdbscan-2d.py`.
+can be reproduced with `scripts/scan-hdbscan-2d.py`. LDA scan results, selected
+model metadata, and assignments are also stored under `analysis/`; reproduce them
+with `scripts/scan-lda.py`, then update an existing catalogue with
+`scripts/build-lenses-data.py --lda-only`.

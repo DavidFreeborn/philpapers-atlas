@@ -23,9 +23,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
       # The lockfile contains platform-specific optional binaries for the original
       # Windows/Cloudflare build; npm resolves the Linux variant on the runner.
       - run: npm install --no-audit --no-fund
+      - run: npm run lint -- --quiet
+      - run: npx tsc --noEmit
+      - run: npm run test:3d
+      - run: npm run test:3d:data
       - run: npm run build:pages
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

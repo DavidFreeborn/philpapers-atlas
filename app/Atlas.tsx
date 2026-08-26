@@ -8,7 +8,22 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { MouseEvent } from 'react';
+import type {
+  KeyboardEvent,
+  MouseEvent,
+  PointerEvent as ReactPointerEvent,
+  WheelEvent,
+} from 'react';
+import {
+  fitCameraToSphere,
+  orbitCamera,
+  panCamera,
+  projectPoint,
+  resetCamera3D,
+  viewProjectionMatrix,
+  zoomCamera,
+} from './atlas3d';
+import type { Camera3D, Vec3 } from './atlas3d';
 
 type PointRow = [number, number, number, number];
 type SearchRow = [string, string, string, string];
@@ -100,6 +115,52 @@ type LensCatalog = {
 };
 
 type View = { zoom: number; panX: number; panY: number };
+type DisplayMode = '2d' | '3d';
+
+type Projection3DMetadata = {
+  version: string;
+  paperCount: number;
+  dimensions: 3;
+  file: string;
+  format: string;
+  binarySha256: string;
+  source: {
+    embeddingDimensions: number;
+    pcaDimensions: number;
+    umapDimensions: number;
+    umapNNeighbors: number;
+    umapMinDist: number;
+    umapMetric: string;
+  };
+  display: {
+    nNeighbors: number;
+    minDist: number;
+    metric: string;
+    epochs: number;
+    randomState: number;
+  };
+  metrics: {
+    trustworthiness15: number;
+    neighbourRecall15: number;
+    neighbourRecall50: number;
+    distanceSpearman: number;
+    seedNeighbourAgreement15: number;
+  };
+};
+
+type Projection3D = {
+  metadata: Projection3DMetadata;
+  positions: Float32Array;
+};
+
+type PickTarget = {
+  framebuffer: WebGLFramebuffer;
+  texture: WebGLTexture;
+  depth: WebGLRenderbuffer;
+  width: number;
+  height: number;
+  scale: number;
+};
 
 type WebGLRenderer = {
   gl: WebGL2RenderingContext;
@@ -108,6 +169,9 @@ type WebGLRenderer = {
   positionBuffer: WebGLBuffer;
   colorBuffer: WebGLBuffer;
   clusterBuffer: WebGLBuffer;
+  positions2d: Float32Array;
+  pickProgram: WebGLProgram;
+  pickTarget: PickTarget | null;
   pointCount: number;
   uniforms: {
     center: WebGLUniformLocation;
@@ -116,6 +180,15 @@ type WebGLRenderer = {
     pan: WebGLUniformLocation;
     viewport: WebGLUniformLocation;
     dpr: WebGLUniformLocation;
+    pointSize: WebGLUniformLocation;
+    activeCluster: WebGLUniformLocation;
+    showNoise: WebGLUniformLocation;
+    is3d: WebGLUniformLocation;
+    viewProjection: WebGLUniformLocation;
+    cameraDistance: WebGLUniformLocation;
+  };
+  pickUniforms: {
+    viewProjection: WebGLUniformLocation;
     pointSize: WebGLUniformLocation;
     activeCluster: WebGLUniformLocation;
     showNoise: WebGLUniformLocation;
@@ -169,6 +242,74 @@ function requiredUniform(
   const location = gl.getUniformLocation(program, name);
   if (!location) throw new Error(`The graphics renderer is missing ${name}.`);
   return location;
+}
+
+function linkProgram(
+  gl: WebGL2RenderingContext,
+  vertexSource: string,
+  fragmentSource: string,
+): WebGLProgram {
+  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
+  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+  const program = gl.createProgram();
+  if (!program) throw new Error('The graphics renderer could not be created.');
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
+  gl.deleteShader(vertexShader);
+  gl.deleteShader(fragmentShader);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const message = gl.getProgramInfoLog(program) || 'Unknown graphics error';
+    gl.deleteProgram(program);
+    throw new Error(`The graphics renderer could not be linked: ${message}`);
+  }
+  return program;
+}
+
+function deletePickTarget(gl: WebGL2RenderingContext, target: PickTarget | null): void {
+  if (!target) return;
+  gl.deleteFramebuffer(target.framebuffer);
+  gl.deleteTexture(target.texture);
+  gl.deleteRenderbuffer(target.depth);
+}
+
+function ensurePickTarget(
+  renderer: WebGLRenderer,
+  cssWidth: number,
+  cssHeight: number,
+): PickTarget {
+  const { gl } = renderer;
+  const scale = Math.min(1, 2048 / Math.max(cssWidth, cssHeight, 1));
+  const width = Math.max(1, Math.ceil(cssWidth * scale));
+  const height = Math.max(1, Math.ceil(cssHeight * scale));
+  const current = renderer.pickTarget;
+  if (current && current.width === width && current.height === height) return current;
+  deletePickTarget(gl, current);
+  const framebuffer = gl.createFramebuffer();
+  const texture = gl.createTexture();
+  const depth = gl.createRenderbuffer();
+  if (!framebuffer || !texture || !depth) throw new Error('The point picker could not be created.');
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
+  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+    deletePickTarget(gl, { framebuffer, texture, depth, width, height, scale });
+    throw new Error('The point picker framebuffer is incomplete.');
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+  const target = { framebuffer, texture, depth, width, height, scale };
+  renderer.pickTarget = target;
+  return target;
 }
 
 function formatNumber(value: number): string {
@@ -296,12 +437,24 @@ export default function Atlas() {
     originY: number;
     moved: boolean;
   } | null>(null);
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const cameraGestureRef = useRef<{
+    kind: 'rotate' | 'pan' | 'pinch';
+    startX: number;
+    startY: number;
+    startSpan: number;
+    origin: Camera3D;
+    moved: boolean;
+  } | null>(null);
+  const hoverPickFrameRef = useRef<number | null>(null);
+  const pendingHoverPickRef = useRef<{ x: number; y: number } | null>(null);
   const spatialRef = useRef<number[][]>([]);
   const webglRef = useRef<WebGLRenderer | null>(null);
   const detailCacheRef = useRef<Map<number, DetailRow[]>>(new Map());
   const detailPromiseRef = useRef<Map<number, Promise<DetailRow[]>>>(new Map());
   const lensLabelCacheRef = useRef<Map<string, Int16Array>>(new Map());
   const lensRequestRef = useRef(0);
+  const projectionRequestRef = useRef<Promise<Projection3D> | null>(null);
 
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [lensCatalog, setLensCatalog] = useState<LensCatalog | null>(null);
@@ -313,6 +466,12 @@ export default function Atlas() {
   const [lensError, setLensError] = useState('');
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<View>({ zoom: 1, panX: 0, panY: 0 });
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('2d');
+  const [projection3d, setProjection3d] = useState<Projection3D | null>(null);
+  const [projectionLoading, setProjectionLoading] = useState(false);
+  const [projectionError, setProjectionError] = useState('');
+  const [camera3d, setCamera3d] = useState<Camera3D>(() => resetCamera3D());
+  const [show3dHelp, setShow3dHelp] = useState(false);
   const [activeCluster, setActiveCluster] = useState<number | null>(null);
   const [showNoise, setShowNoise] = useState(true);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -422,6 +581,60 @@ export default function Atlas() {
     }
   }, [activeLensId, lensCatalog, lensLoadingId]);
 
+  const loadProjection3d = useCallback(async (): Promise<Projection3D> => {
+    if (projection3d) return projection3d;
+    if (projectionRequestRef.current) return projectionRequestRef.current;
+    const request = fetch('data/projection-3d.json')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('The three-dimensional projection could not be loaded.');
+        const metadata = await response.json() as Projection3DMetadata;
+        if (metadata.paperCount !== mapData?.count || metadata.dimensions !== 3) {
+          throw new Error('The three-dimensional projection does not match this atlas.');
+        }
+        const binaryResponse = await fetch(metadata.file);
+        if (!binaryResponse.ok) throw new Error('The three-dimensional coordinates could not be loaded.');
+        const buffer = await binaryResponse.arrayBuffer();
+        const expectedBytes = metadata.paperCount * 3 * Float32Array.BYTES_PER_ELEMENT;
+        if (buffer.byteLength !== expectedBytes) {
+          throw new Error('The three-dimensional coordinate file has an unexpected size.');
+        }
+        const positions = new Float32Array(buffer);
+        for (let index = 0; index < positions.length; index += 1) {
+          if (!Number.isFinite(positions[index])) {
+            throw new Error('The three-dimensional coordinate file contains invalid values.');
+          }
+        }
+        return { metadata, positions };
+      })
+      .finally(() => {
+        projectionRequestRef.current = null;
+      });
+    projectionRequestRef.current = request;
+    return request;
+  }, [mapData?.count, projection3d]);
+
+  const changeDisplayMode = useCallback(async (nextMode: DisplayMode) => {
+    if (nextMode === displayMode || projectionLoading) return;
+    setProjectionError('');
+    setHoveredIndex(null);
+    if (nextMode === '2d') {
+      setDisplayMode('2d');
+      setShow3dHelp(false);
+      return;
+    }
+    setProjectionLoading(true);
+    try {
+      const loaded = await loadProjection3d();
+      setProjection3d(loaded);
+      setCamera3d(resetCamera3D());
+      setDisplayMode('3d');
+    } catch (error) {
+      setProjectionError(error instanceof Error ? error.message : 'The three-dimensional view could not be loaded.');
+    } finally {
+      setProjectionLoading(false);
+    }
+  }, [displayMode, loadProjection3d, projectionLoading]);
+
   const pointGroups = useMemo(() => {
     if (!currentLabels) return new Map<number, number[]>();
     const groups = new Map<number, number[]>();
@@ -487,6 +700,22 @@ export default function Atlas() {
     [getMetrics, view],
   );
 
+  const toScreenIndex = useCallback((index: number) => {
+    const metrics = getMetrics();
+    const point = mapData?.points[index];
+    if (!metrics || !point) return null;
+    if (displayMode === '2d') return { ...toScreen(point[0], point[1]), visible: true };
+    const positions = projection3d?.positions;
+    if (!positions) return null;
+    const offset = index * 3;
+    return projectPoint(
+      [positions[offset], positions[offset + 1], positions[offset + 2]],
+      viewProjectionMatrix(camera3d, metrics.width / Math.max(metrics.height, 1)),
+      metrics.width,
+      metrics.height,
+    );
+  }, [camera3d, displayMode, getMetrics, mapData, projection3d, toScreen]);
+
   const drawMap = useCallback(() => {
     const canvas = canvasRef.current;
     const renderer = webglRef.current;
@@ -502,9 +731,15 @@ export default function Atlas() {
       canvas.height = targetHeight;
     }
 
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, targetWidth, targetHeight);
     gl.clearColor(18 / 255, 18 / 255, 26 / 255, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clearDepth(1);
+    gl.depthMask(false);
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(renderer.program);
     gl.bindVertexArray(renderer.vertexArray);
     gl.uniform2f(uniforms.center, metrics.centerX, metrics.centerY);
@@ -513,12 +748,24 @@ export default function Atlas() {
     gl.uniform2f(uniforms.pan, view.panX, view.panY);
     gl.uniform2f(uniforms.viewport, metrics.width, metrics.height);
     gl.uniform1f(uniforms.dpr, ratio);
-    gl.uniform1f(uniforms.pointSize, clamp(1.75 + Math.log2(view.zoom + 1) * 0.72, 2.35, 7));
+    gl.uniform1f(
+      uniforms.pointSize,
+      displayMode === '3d'
+        ? clamp(2.45 + Math.log2(3.25 / camera3d.distance + 1) * 0.38, 2.55, 5.4)
+        : clamp(1.75 + Math.log2(view.zoom + 1) * 0.72, 2.35, 7),
+    );
     gl.uniform1f(uniforms.activeCluster, activeCluster ?? -2);
     gl.uniform1f(uniforms.showNoise, showNoise ? 1 : 0);
+    gl.uniform1f(uniforms.is3d, displayMode === '3d' ? 1 : 0);
+    gl.uniformMatrix4fv(
+      uniforms.viewProjection,
+      false,
+      viewProjectionMatrix(camera3d, metrics.width / Math.max(metrics.height, 1)),
+    );
+    gl.uniform1f(uniforms.cameraDistance, camera3d.distance);
     gl.drawArrays(gl.POINTS, 0, renderer.pointCount);
     gl.bindVertexArray(null);
-  }, [activeCluster, getMetrics, showNoise, view]);
+  }, [activeCluster, camera3d, displayMode, getMetrics, showNoise, view]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -527,7 +774,7 @@ export default function Atlas() {
     const gl = canvas.getContext('webgl2', {
       alpha: false,
       antialias: false,
-      depth: false,
+      depth: true,
       powerPreference: 'high-performance',
       preserveDrawingBuffer: false,
     });
@@ -537,12 +784,11 @@ export default function Atlas() {
     }
 
     try {
-      const vertexShader = compileShader(
+      const program = linkProgram(
         gl,
-        gl.VERTEX_SHADER,
         `#version 300 es
         precision highp float;
-        layout(location = 0) in vec2 aPosition;
+        layout(location = 0) in vec3 aPosition;
         layout(location = 1) in vec3 aColor;
         layout(location = 2) in float aCluster;
         uniform vec2 uCenter;
@@ -554,6 +800,9 @@ export default function Atlas() {
         uniform float uPointSize;
         uniform float uActiveCluster;
         uniform float uShowNoise;
+        uniform float uIs3d;
+        uniform mat4 uViewProjection;
+        uniform float uCameraDistance;
         out vec3 vColor;
         out float vAlpha;
 
@@ -571,16 +820,25 @@ export default function Atlas() {
             vColor = aColor;
             return;
           }
-          float x = (aPosition.x - uCenter.x) * uBaseScale * uZoom + uViewport.x * 0.5 + uPan.x;
-          float y = -(aPosition.y - uCenter.y) * uBaseScale * uZoom + uViewport.y * 0.5 + uPan.y;
-          gl_Position = vec4(x / uViewport.x * 2.0 - 1.0, 1.0 - y / uViewport.y * 2.0, 0.0, 1.0);
-          gl_PointSize = uPointSize * uDpr;
+          if (uIs3d > 0.5) {
+            gl_Position = uViewProjection * vec4(aPosition, 1.0);
+            float depth = max(gl_Position.w, 0.001);
+            float wanted = uPointSize * uDpr * uCameraDistance / depth;
+            float floorSize = 2.15 * uDpr;
+            float drawn = max(wanted, floorSize);
+            float ratio = min(1.0, wanted / max(drawn, 0.001));
+            float farFade = clamp(uCameraDistance / depth, 0.20, 1.0);
+            float nearFade = smoothstep(0.09, 0.27, depth / max(uCameraDistance, 0.001));
+            vAlpha *= ratio * ratio * farFade * nearFade;
+            gl_PointSize = drawn;
+          } else {
+            float x = (aPosition.x - uCenter.x) * uBaseScale * uZoom + uViewport.x * 0.5 + uPan.x;
+            float y = -(aPosition.y - uCenter.y) * uBaseScale * uZoom + uViewport.y * 0.5 + uPan.y;
+            gl_Position = vec4(x / uViewport.x * 2.0 - 1.0, 1.0 - y / uViewport.y * 2.0, 0.0, 1.0);
+            gl_PointSize = uPointSize * uDpr;
+          }
           vColor = aColor;
         }`,
-      );
-      const fragmentShader = compileShader(
-        gl,
-        gl.FRAGMENT_SHADER,
         `#version 300 es
         precision highp float;
         in vec3 vColor;
@@ -592,28 +850,60 @@ export default function Atlas() {
           float radius = dot(point, point);
           if (radius > 1.0) discard;
           float coverage = 1.0 - smoothstep(0.48, 1.0, radius);
-          outColor = vec4(vColor, vAlpha * coverage);
+          float alpha = vAlpha * coverage;
+          if (!(alpha >= 0.004)) discard;
+          outColor = vec4(vColor, clamp(alpha, 0.0, 1.0));
         }`,
       );
-      const program = gl.createProgram();
-      if (!program) throw new Error('The graphics renderer could not be created.');
-      gl.attachShader(program, vertexShader);
-      gl.attachShader(program, fragmentShader);
-      gl.linkProgram(program);
-      gl.deleteShader(vertexShader);
-      gl.deleteShader(fragmentShader);
-      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        const message = gl.getProgramInfoLog(program) || 'Unknown graphics error';
-        gl.deleteProgram(program);
-        throw new Error(`The graphics renderer could not be linked: ${message}`);
-      }
+      const pickProgram = linkProgram(
+        gl,
+        `#version 300 es
+        precision highp float;
+        layout(location = 0) in vec3 aPosition;
+        layout(location = 2) in float aCluster;
+        uniform mat4 uViewProjection;
+        uniform float uPointSize;
+        uniform float uActiveCluster;
+        uniform float uShowNoise;
+        flat out vec3 vId;
 
-      const positions = new Float32Array(mapData.points.length * 2);
+        void main() {
+          bool allClusters = uActiveCluster < -1.5;
+          bool isNoise = aCluster < -0.5;
+          bool visible = isNoise ? uShowNoise > 0.5 : (allClusters || abs(aCluster - uActiveCluster) < 0.1);
+          if (!visible) {
+            gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
+            gl_PointSize = 0.0;
+          } else {
+            gl_Position = uViewProjection * vec4(aPosition, 1.0);
+            gl_PointSize = uPointSize;
+          }
+          int identifier = gl_VertexID + 1;
+          vId = vec3(
+            float(identifier & 255),
+            float((identifier >> 8) & 255),
+            float((identifier >> 16) & 255)
+          ) / 255.0;
+        }`,
+        `#version 300 es
+        precision highp float;
+        flat in vec3 vId;
+        out vec4 outColor;
+
+        void main() {
+          vec2 point = gl_PointCoord * 2.0 - 1.0;
+          if (dot(point, point) > 1.0) discard;
+          outColor = vec4(vId, 1.0);
+        }`,
+      );
+
+      const positions = new Float32Array(mapData.points.length * 3);
       const colors = new Float32Array(mapData.points.length * 3);
       const clusters = new Float32Array(mapData.points.length);
       mapData.points.forEach((point, index) => {
-        positions[index * 2] = point[0];
-        positions[index * 2 + 1] = point[1];
+        positions[index * 3] = point[0];
+        positions[index * 3 + 1] = point[1];
+        positions[index * 3 + 2] = 0;
         clusters[index] = point[2];
         const color = colorChannels(clusterColor(point[2]));
         colors[index * 3] = color[0];
@@ -632,7 +922,7 @@ export default function Atlas() {
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
       gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
       gl.enableVertexAttribArray(0);
-      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
       gl.bufferData(gl.ARRAY_BUFFER, colors, gl.DYNAMIC_DRAW);
       gl.enableVertexAttribArray(1);
@@ -653,6 +943,9 @@ export default function Atlas() {
         positionBuffer,
         colorBuffer,
         clusterBuffer,
+        positions2d: positions,
+        pickProgram,
+        pickTarget: null,
         pointCount: mapData.points.length,
         uniforms: {
           center: requiredUniform(gl, program, 'uCenter'),
@@ -664,6 +957,15 @@ export default function Atlas() {
           pointSize: requiredUniform(gl, program, 'uPointSize'),
           activeCluster: requiredUniform(gl, program, 'uActiveCluster'),
           showNoise: requiredUniform(gl, program, 'uShowNoise'),
+          is3d: requiredUniform(gl, program, 'uIs3d'),
+          viewProjection: requiredUniform(gl, program, 'uViewProjection'),
+          cameraDistance: requiredUniform(gl, program, 'uCameraDistance'),
+        },
+        pickUniforms: {
+          viewProjection: requiredUniform(gl, pickProgram, 'uViewProjection'),
+          pointSize: requiredUniform(gl, pickProgram, 'uPointSize'),
+          activeCluster: requiredUniform(gl, pickProgram, 'uActiveCluster'),
+          showNoise: requiredUniform(gl, pickProgram, 'uShowNoise'),
         },
       };
       webglRef.current = renderer;
@@ -679,10 +981,25 @@ export default function Atlas() {
       gl.deleteBuffer(renderer.colorBuffer);
       gl.deleteBuffer(renderer.clusterBuffer);
       gl.deleteVertexArray(renderer.vertexArray);
+      deletePickTarget(gl, renderer.pickTarget);
+      gl.deleteProgram(renderer.pickProgram);
       gl.deleteProgram(renderer.program);
       webglRef.current = null;
     };
   }, [mapData]);
+
+  useEffect(() => {
+    const renderer = webglRef.current;
+    if (!renderer) return;
+    const positions = displayMode === '3d' ? projection3d?.positions : renderer.positions2d;
+    if (!positions || positions.length !== renderer.pointCount * 3) return;
+    const { gl } = renderer;
+    gl.bindBuffer(gl.ARRAY_BUFFER, renderer.positionBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, positions);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    const frame = requestAnimationFrame(drawMap);
+    return () => cancelAnimationFrame(frame);
+  }, [displayMode, drawMap, projection3d]);
 
   useEffect(() => {
     const renderer = webglRef.current;
@@ -798,7 +1115,7 @@ export default function Atlas() {
     return results;
   }, [deferredQuery, searchData, searchableRows]);
 
-  const pickPoint = useCallback(
+  const pickPoint2d = useCallback(
     (screenX: number, screenY: number): number | null => {
       const metrics = getMetrics();
       if (!metrics || !mapData) return null;
@@ -840,6 +1157,250 @@ export default function Atlas() {
     [activeCluster, currentLabels, getMetrics, mapData, showNoise, toScreen, view],
   );
 
+  const pickPoint3d = useCallback((screenX: number, screenY: number): number | null => {
+    const renderer = webglRef.current;
+    const metrics = getMetrics();
+    if (!renderer || !metrics || displayMode !== '3d' || !projection3d) return null;
+    const { gl } = renderer;
+    try {
+      const target = ensurePickTarget(renderer, metrics.width, metrics.height);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
+      gl.viewport(0, 0, target.width, target.height);
+      gl.disable(gl.BLEND);
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthMask(true);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clearDepth(1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.useProgram(renderer.pickProgram);
+      gl.bindVertexArray(renderer.vertexArray);
+      gl.uniformMatrix4fv(
+        renderer.pickUniforms.viewProjection,
+        false,
+        viewProjectionMatrix(camera3d, metrics.width / Math.max(metrics.height, 1)),
+      );
+      gl.uniform1f(renderer.pickUniforms.pointSize, Math.max(8, 14 * target.scale));
+      gl.uniform1f(renderer.pickUniforms.activeCluster, activeCluster ?? -2);
+      gl.uniform1f(renderer.pickUniforms.showNoise, showNoise ? 1 : 0);
+      gl.drawArrays(gl.POINTS, 0, renderer.pointCount);
+      const pixel = new Uint8Array(4);
+      const x = clamp(Math.floor(screenX * target.scale), 0, target.width - 1);
+      const y = clamp(target.height - 1 - Math.floor(screenY * target.scale), 0, target.height - 1);
+      gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+      const identifier = pixel[0] + (pixel[1] << 8) + (pixel[2] << 16);
+      return identifier > 0 && identifier <= renderer.pointCount ? identifier - 1 : null;
+    } catch {
+      return null;
+    } finally {
+      gl.bindVertexArray(null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.depthMask(false);
+      gl.disable(gl.DEPTH_TEST);
+      gl.enable(gl.BLEND);
+    }
+  }, [activeCluster, camera3d, displayMode, getMetrics, projection3d, showNoise]);
+
+  const schedule3dHoverPick = useCallback((x: number, y: number) => {
+    pendingHoverPickRef.current = { x, y };
+    if (hoverPickFrameRef.current !== null) return;
+    hoverPickFrameRef.current = requestAnimationFrame(() => {
+      hoverPickFrameRef.current = null;
+      const pending = pendingHoverPickRef.current;
+      pendingHoverPickRef.current = null;
+      if (!pending || pointersRef.current.size > 0) return;
+      setHoveredIndex(pickPoint3d(pending.x, pending.y));
+    });
+  }, [pickPoint3d]);
+
+  useEffect(() => () => {
+    if (hoverPickFrameRef.current !== null) cancelAnimationFrame(hoverPickFrameRef.current);
+  }, []);
+
+  const begin3dGesture = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    pointersRef.current.set(event.pointerId, {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    });
+    const points = [...pointersRef.current.values()];
+    if (points.length >= 2) {
+      const first = points[0];
+      const second = points[1];
+      cameraGestureRef.current = {
+        kind: 'pinch',
+        startX: (first.x + second.x) / 2,
+        startY: (first.y + second.y) / 2,
+        startSpan: Math.max(1, Math.hypot(first.x - second.x, first.y - second.y)),
+        origin: camera3d,
+        moved: true,
+      };
+    } else {
+      cameraGestureRef.current = {
+        kind: event.shiftKey || event.button === 1 || event.button === 2 ? 'pan' : 'rotate',
+        startX: points[0].x,
+        startY: points[0].y,
+        startSpan: 0,
+        origin: camera3d,
+        moved: false,
+      };
+    }
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setHoveredIndex(null);
+  }, [camera3d]);
+
+  const move3dGesture = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    if (!pointersRef.current.has(event.pointerId)) {
+      if (event.pointerType === 'mouse') schedule3dHoverPick(x, y);
+      return;
+    }
+    pointersRef.current.set(event.pointerId, { x, y });
+    const gesture = cameraGestureRef.current;
+    const points = [...pointersRef.current.values()];
+    if (!gesture) return;
+    if (points.length >= 2) {
+      const first = points[0];
+      const second = points[1];
+      const centerX = (first.x + second.x) / 2;
+      const centerY = (first.y + second.y) / 2;
+      const span = Math.max(1, Math.hypot(first.x - second.x, first.y - second.y));
+      if (gesture.kind !== 'pinch') {
+        cameraGestureRef.current = {
+          kind: 'pinch',
+          startX: centerX,
+          startY: centerY,
+          startSpan: span,
+          origin: camera3d,
+          moved: true,
+        };
+        return;
+      }
+      const zoomed = zoomCamera(gesture.origin, gesture.startSpan / span);
+      setCamera3d(panCamera(
+        zoomed,
+        centerX - gesture.startX,
+        centerY - gesture.startY,
+        viewport.height,
+        viewport.width / Math.max(viewport.height, 1),
+      ));
+      gesture.moved = true;
+      return;
+    }
+    const deltaX = x - gesture.startX;
+    const deltaY = y - gesture.startY;
+    if (Math.abs(deltaX) + Math.abs(deltaY) > 3) gesture.moved = true;
+    setCamera3d(
+      gesture.kind === 'pan'
+        ? panCamera(
+          gesture.origin,
+          deltaX,
+          deltaY,
+          viewport.height,
+          viewport.width / Math.max(viewport.height, 1),
+        )
+        : orbitCamera(gesture.origin, deltaX, deltaY),
+    );
+  }, [camera3d, schedule3dHoverPick, viewport]);
+
+  const end3dGesture = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const gesture = cameraGestureRef.current;
+    const wasSinglePointer = pointersRef.current.size === 1;
+    pointersRef.current.delete(event.pointerId);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (wasSinglePointer && gesture && !gesture.moved && event.button === 0) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const picked = pickPoint3d(event.clientX - rect.left, event.clientY - rect.top);
+      if (picked !== null) {
+        setSelectedIndex(picked);
+        setHoveredIndex(picked);
+        setShowInspector(true);
+      }
+    }
+    const remaining = [...pointersRef.current.values()];
+    if (remaining.length === 1) {
+      cameraGestureRef.current = {
+        kind: 'rotate',
+        startX: remaining[0].x,
+        startY: remaining[0].y,
+        startSpan: 0,
+        origin: camera3d,
+        moved: true,
+      };
+    } else if (remaining.length === 0) {
+      cameraGestureRef.current = null;
+    }
+  }, [camera3d, pickPoint3d]);
+
+  const cancel3dGesture = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
+    pointersRef.current.delete(event.pointerId);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (pointersRef.current.size === 0) cameraGestureRef.current = null;
+  }, []);
+
+  const zoom3dBy = useCallback((factor: number) => {
+    setCamera3d((current) => zoomCamera(current, factor));
+  }, []);
+
+  const handleCanvasWheel = useCallback((event: WheelEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    if (displayMode === '3d') {
+      zoom3dBy(Math.exp(event.deltaY * 0.0011));
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const pointerX = event.clientX - rect.left;
+    const pointerY = event.clientY - rect.top;
+    const metrics = getMetrics();
+    if (!metrics) return;
+    setView((current) => {
+      const nextZoom = clamp(current.zoom * Math.exp(-event.deltaY * 0.0012), 0.65, 28);
+      const ratio = nextZoom / current.zoom;
+      return {
+        zoom: nextZoom,
+        panX: pointerX - metrics.width / 2 - (pointerX - metrics.width / 2 - current.panX) * ratio,
+        panY: pointerY - metrics.height / 2 - (pointerY - metrics.height / 2 - current.panY) * ratio,
+      };
+    });
+  }, [displayMode, getMetrics, zoom3dBy]);
+
+  const handleCanvasKeyDown = useCallback((event: KeyboardEvent<HTMLCanvasElement>) => {
+    const key = event.key.toLowerCase();
+    if (displayMode === '3d') {
+      if (key === 'arrowleft' || key === 'arrowright' || key === 'arrowup' || key === 'arrowdown') {
+        event.preventDefault();
+        const horizontal = key === 'arrowleft' ? -24 : key === 'arrowright' ? 24 : 0;
+        const vertical = key === 'arrowup' ? -24 : key === 'arrowdown' ? 24 : 0;
+        setCamera3d((current) => orbitCamera(current, horizontal, vertical));
+      } else if (key === '+' || key === '=') {
+        event.preventDefault(); zoom3dBy(0.78);
+      } else if (key === '-' || key === '_') {
+        event.preventDefault(); zoom3dBy(1.28);
+      } else if (key === 'r') {
+        event.preventDefault();
+        setActiveCluster(null);
+        setSelectedIndex(null);
+        setCamera3d(resetCamera3D());
+      }
+      return;
+    }
+    if (key === '+' || key === '=') {
+      event.preventDefault(); setView((current) => ({ ...current, zoom: clamp(current.zoom * 1.35, 0.65, 28) }));
+    } else if (key === '-' || key === '_') {
+      event.preventDefault(); setView((current) => ({ ...current, zoom: clamp(current.zoom / 1.35, 0.65, 28) }));
+    } else if (key === 'r') {
+      event.preventDefault();
+      setActiveCluster(null);
+      setSelectedIndex(null);
+      setView({ zoom: 1, panX: 0, panY: 0 });
+    }
+  }, [displayMode, zoom3dBy]);
+
   const focusPoint = useCallback(
     (index: number) => {
       if (!mapData) return;
@@ -847,18 +1408,33 @@ export default function Atlas() {
       const point = mapData.points[index];
       if (!metrics || !point) return;
       const clusterId = currentLabels?.[index] ?? point[2];
-      const zoom = Math.max(view.zoom, 6);
-      setView({
-        zoom,
-        panX: -(point[0] - metrics.centerX) * metrics.baseScale * zoom,
-        panY: (point[1] - metrics.centerY) * metrics.baseScale * zoom,
-      });
+      if (displayMode === '3d' && projection3d) {
+        const offset = index * 3;
+        const center: Vec3 = [
+          projection3d.positions[offset],
+          projection3d.positions[offset + 1],
+          projection3d.positions[offset + 2],
+        ];
+        setCamera3d((current) => fitCameraToSphere(
+          current,
+          center,
+          0.11,
+          metrics.width / Math.max(metrics.height, 1),
+        ));
+      } else {
+        const zoom = Math.max(view.zoom, 6);
+        setView({
+          zoom,
+          panX: -(point[0] - metrics.centerX) * metrics.baseScale * zoom,
+          panY: (point[1] - metrics.centerY) * metrics.baseScale * zoom,
+        });
+      }
       setSelectedIndex(index);
       setActiveCluster(clusterId >= 0 ? clusterId : null);
       setShowInspector(true);
       setQuery('');
     },
-    [currentLabels, getMetrics, mapData, view.zoom],
+    [currentLabels, displayMode, getMetrics, mapData, projection3d, view.zoom],
   );
 
   const handleSearchResultClick = useCallback(
@@ -876,12 +1452,50 @@ export default function Atlas() {
       setShowLegend(false);
       if (clusterId !== null) setShowInspector(true);
       if (clusterId === null || !mapData) {
-        setView({ zoom: 1, panX: 0, panY: 0 });
+        if (displayMode === '3d') setCamera3d(resetCamera3D());
+        else setView({ zoom: 1, panX: 0, panY: 0 });
         return;
       }
       const indices = pointGroups.get(clusterId) ?? [];
       const metrics = getMetrics();
       if (!indices.length || !metrics) return;
+      if (displayMode === '3d' && projection3d) {
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minY = Infinity;
+        let maxY = -Infinity;
+        let minZ = Infinity;
+        let maxZ = -Infinity;
+        for (const index of indices) {
+          const offset = index * 3;
+          const x = projection3d.positions[offset];
+          const y = projection3d.positions[offset + 1];
+          const z = projection3d.positions[offset + 2];
+          minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+          minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+        }
+        const center: Vec3 = [(minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2];
+        let radius = 0;
+        for (const index of indices) {
+          const offset = index * 3;
+          radius = Math.max(
+            radius,
+            Math.hypot(
+              projection3d.positions[offset] - center[0],
+              projection3d.positions[offset + 1] - center[1],
+              projection3d.positions[offset + 2] - center[2],
+            ),
+          );
+        }
+        setCamera3d((current) => fitCameraToSphere(
+          current,
+          center,
+          radius,
+          metrics.width / Math.max(metrics.height, 1),
+        ));
+        return;
+      }
       let minX = Infinity;
       let maxX = -Infinity;
       let minY = Infinity;
@@ -908,7 +1522,7 @@ export default function Atlas() {
         panY: (centerY - metrics.centerY) * metrics.baseScale * zoom,
       });
     },
-    [getMetrics, mapData, pointGroups],
+    [displayMode, getMetrics, mapData, pointGroups, projection3d],
   );
 
   const selectedPoint = selectedIndex === null ? null : mapData?.points[selectedIndex] ?? null;
@@ -923,8 +1537,8 @@ export default function Atlas() {
   const hoveredPoint = hoveredIndex === null ? null : mapData?.points[hoveredIndex] ?? null;
   const hoveredClusterId = hoveredIndex === null ? null : currentLabels?.[hoveredIndex] ?? hoveredPoint?.[2] ?? -1;
   const hoveredCluster = hoveredPoint ? clusterById.get(hoveredClusterId ?? -1) : null;
-  const selectedMarker = selectedPoint ? toScreen(selectedPoint[0], selectedPoint[1]) : null;
-  const hoveredMarker = hoveredPoint ? toScreen(hoveredPoint[0], hoveredPoint[1]) : null;
+  const selectedMarker = selectedIndex === null ? null : toScreenIndex(selectedIndex);
+  const hoveredMarker = hoveredIndex === null ? null : toScreenIndex(hoveredIndex);
 
   if (loadError) {
     return (
@@ -1060,13 +1674,68 @@ export default function Atlas() {
 
         <div className="map-shell" ref={mapShellRef}>
           {!mapData && <Loader />}
+          <div className="view-control-wrap">
+            <div className="view-control" role="group" aria-label="Projection view">
+              <button
+                className={displayMode === '2d' ? 'active' : ''}
+                onClick={() => void changeDisplayMode('2d')}
+                aria-pressed={displayMode === '2d'}
+                disabled={projectionLoading}
+              >2D</button>
+              <button
+                className={displayMode === '3d' ? 'active' : ''}
+                onClick={() => void changeDisplayMode('3d')}
+                aria-pressed={displayMode === '3d'}
+                disabled={projectionLoading}
+              >{projectionLoading ? 'Loading…' : '3D'}</button>
+            </div>
+            {displayMode === '3d' && (
+              <button
+                className="view-help-button"
+                onClick={() => setShow3dHelp((current) => !current)}
+                aria-label="How to use the three-dimensional view"
+                aria-expanded={show3dHelp}
+              >?</button>
+            )}
+          </div>
+
+          {projectionError && (
+            <div className="projection-message projection-error" role="alert">
+              {projectionError}
+            </div>
+          )}
+
+          {displayMode === '3d' && show3dHelp && (
+            <section className="view-help" aria-label="Three-dimensional view controls">
+              <button onClick={() => setShow3dHelp(false)} aria-label="Close three-dimensional view help">×</button>
+              <h2>Explore in 3D</h2>
+              <dl>
+                <div><dt>Rotate</dt><dd>Drag</dd></div>
+                <div><dt>Move</dt><dd>Shift-drag or right-drag</dd></div>
+                <div><dt>Zoom</dt><dd>Scroll or pinch</dd></div>
+                <div><dt>Select</dt><dd>Click a paper</dd></div>
+                <div><dt>Reset</dt><dd>R</dd></div>
+              </dl>
+              <p>
+                This separate UMAP uses a matching reconstruction of the 30-dimensional analysis pipeline.
+                It preserves more local structure than the flat display, but global distances and orientation remain approximate.
+              </p>
+            </section>
+          )}
+
           <canvas
             ref={canvasRef}
-            className="atlas-canvas"
+            className={`atlas-canvas mode-${displayMode}`}
             role="application"
             tabIndex={0}
-            aria-label="Interactive two-dimensional UMAP of PhilPapers. Drag to pan, scroll to zoom, and select a point to inspect a paper."
+            aria-label={displayMode === '3d'
+              ? 'Interactive three-dimensional UMAP of PhilPapers. Drag to rotate, shift-drag to move, scroll to zoom, and select a point to inspect a paper.'
+              : 'Interactive two-dimensional UMAP of PhilPapers. Drag to pan, scroll to zoom, and select a point to inspect a paper.'}
             onPointerDown={(event) => {
+              if (displayMode === '3d') {
+                begin3dGesture(event);
+                return;
+              }
               event.currentTarget.setPointerCapture(event.pointerId);
               dragRef.current = {
                 pointerId: event.pointerId,
@@ -1078,6 +1747,10 @@ export default function Atlas() {
               };
             }}
             onPointerMove={(event) => {
+              if (displayMode === '3d') {
+                move3dGesture(event);
+                return;
+              }
               const rect = event.currentTarget.getBoundingClientRect();
               const localX = event.clientX - rect.left;
               const localY = event.clientY - rect.top;
@@ -1090,49 +1763,49 @@ export default function Atlas() {
                 setHoveredIndex(null);
                 return;
               }
-              const picked = pickPoint(localX, localY);
+              const picked = pickPoint2d(localX, localY);
               setHoveredIndex((current) => current === picked ? current : picked);
             }}
             onPointerUp={(event) => {
+              if (displayMode === '3d') {
+                end3dGesture(event);
+                return;
+              }
               const drag = dragRef.current;
               dragRef.current = null;
               if (drag && !drag.moved) {
                 const rect = event.currentTarget.getBoundingClientRect();
-                const picked = pickPoint(event.clientX - rect.left, event.clientY - rect.top);
+                const picked = pickPoint2d(event.clientX - rect.left, event.clientY - rect.top);
                 if (picked !== null) {
                   setSelectedIndex(picked);
                   setHoveredIndex(picked);
                   setShowInspector(true);
                 }
               }
-              event.currentTarget.releasePointerCapture(event.pointerId);
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }
             }}
-            onPointerCancel={() => {
+            onPointerCancel={(event) => {
+              if (displayMode === '3d') {
+                cancel3dGesture(event);
+                return;
+              }
               dragRef.current = null;
             }}
             onPointerLeave={() => {
-              if (!dragRef.current) setHoveredIndex(null);
+              if (displayMode === '3d') {
+                if (pointersRef.current.size === 0) setHoveredIndex(null);
+              } else if (!dragRef.current) setHoveredIndex(null);
             }}
-            onWheel={(event) => {
-              event.preventDefault();
-              const rect = event.currentTarget.getBoundingClientRect();
-              const pointerX = event.clientX - rect.left;
-              const pointerY = event.clientY - rect.top;
-              const metrics = getMetrics();
-              if (!metrics) return;
-              setView((current) => {
-                const nextZoom = clamp(current.zoom * Math.exp(-event.deltaY * 0.0012), 0.65, 28);
-                const ratio = nextZoom / current.zoom;
-                return {
-                  zoom: nextZoom,
-                  panX: pointerX - metrics.width / 2 - (pointerX - metrics.width / 2 - current.panX) * ratio,
-                  panY: pointerY - metrics.height / 2 - (pointerY - metrics.height / 2 - current.panY) * ratio,
-                };
-              });
+            onWheel={handleCanvasWheel}
+            onKeyDown={handleCanvasKeyDown}
+            onContextMenu={(event) => {
+              if (displayMode === '3d') event.preventDefault();
             }}
           />
 
-          {selectedMarker && selectedPoint && (
+          {selectedMarker?.visible && selectedPoint && (
             <span
               className="point-marker selected-marker"
               style={{
@@ -1143,7 +1816,7 @@ export default function Atlas() {
               aria-hidden="true"
             />
           )}
-          {hoveredMarker && hoveredPoint && hoveredIndex !== selectedIndex && (
+          {hoveredMarker?.visible && hoveredPoint && hoveredIndex !== selectedIndex && (
             <span
               className="point-marker hover-marker"
               style={{
@@ -1155,7 +1828,7 @@ export default function Atlas() {
             />
           )}
 
-          {hoveredIndex !== null && hoveredPoint && hoveredMarker && (
+          {hoveredIndex !== null && hoveredPoint && hoveredMarker?.visible && (
             <div className="paper-tooltip" style={{ left: hoveredMarker.x, top: hoveredMarker.y }}>
               <span style={{ background: clusterColor(hoveredClusterId ?? -1, clusterById) }} />
               <div>
@@ -1166,8 +1839,18 @@ export default function Atlas() {
           )}
 
           <div className="map-controls" aria-label="Map controls">
-            <button onClick={() => setView((current) => ({ ...current, zoom: clamp(current.zoom * 1.45, 0.65, 28) }))} aria-label="Zoom in">+</button>
-            <button onClick={() => setView((current) => ({ ...current, zoom: clamp(current.zoom / 1.45, 0.65, 28) }))} aria-label="Zoom out">−</button>
+            <button
+              onClick={() => displayMode === '3d'
+                ? zoom3dBy(0.72)
+                : setView((current) => ({ ...current, zoom: clamp(current.zoom * 1.45, 0.65, 28) }))}
+              aria-label="Zoom in"
+            >+</button>
+            <button
+              onClick={() => displayMode === '3d'
+                ? zoom3dBy(1.38)
+                : setView((current) => ({ ...current, zoom: clamp(current.zoom / 1.45, 0.65, 28) }))}
+              aria-label="Zoom out"
+            >−</button>
             <button className="reset-control" onClick={() => focusCluster(null)}>Reset</button>
           </div>
           <button className="mobile-inspector-button" onClick={() => setShowInspector(true)}>Details</button>

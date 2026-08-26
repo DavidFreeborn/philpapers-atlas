@@ -38,3 +38,6 @@ next-env.d.ts
 /outputs/
 /work/
 *.tsbuildinfo
+
+# reproducible high-dimensional 3D projection intermediates
+/analysis/3d-work/

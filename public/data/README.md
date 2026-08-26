@@ -9,6 +9,8 @@ The application does not refit PCA, UMAP, HDBSCAN, k-means, or LDA.
 - `details/*.json`: abstract-only shards, prefetched on hover and fetched on demand.
 - `lenses/catalog.json`: methods, metrics, names, terms, and counts for the available clustering lenses.
 - `lenses/labels/*.bin`: compact Int16 assignment arrays, loaded on demand; all use the same paper order.
+- `projection-3d.bin`: normalized little-endian Float32 XYZ coordinates in the same paper order, loaded only when 3D is requested.
+- `projection-3d.json`: 3D method, parameter, validation, normalization, corpus-hash, and checksum metadata.
 - `manifest.json`: provenance and validation counts.
 
 Regenerate with `scripts/build-map-data.py`; its source directory must contain
@@ -20,3 +22,11 @@ can be reproduced with `scripts/scan-hdbscan-2d.py`. LDA scan results, selected
 model metadata, and assignments are also stored under `analysis/`; reproduce them
 with `scripts/scan-lda.py`, then update an existing catalogue with
 `scripts/build-lenses-data.py --lda-only`.
+
+The optional 3D data can be reproduced with `scripts/build-3d-projection.py`.
+The script pins the SPECTER model revision, rebuilds the 100D PCA and 30D source
+UMAP, evaluates ten 3D UMAP configurations, checks the two finalists across
+three seeds, and reports a disjoint 5,000-paper holdout. Intermediate embeddings
+and reductions are resumable and ignored by Git. Run
+`scripts/validate-3d-projection.py` to check alignment, byte length, checksum,
+normalization, selected parameters, and holdout improvement.

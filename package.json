@@ -12,7 +12,9 @@
     "build:pages": "vite build --config vite.pages.config.ts",
     "preview:pages": "vite preview --config vite.pages.config.ts",
     "start": "vinext start",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern pages-dist --ignore-pattern .next"
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern pages-dist --ignore-pattern .next",
+    "test:3d": "node --experimental-strip-types --test scripts/atlas3d.test.ts",
+    "test:3d:data": "python scripts/validate-3d-projection.py"
   },
   "dependencies": {
     "next": "16.2.6",

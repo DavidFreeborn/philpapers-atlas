@@ -1,0 +1,80 @@
+{
+  "version": "1.0.0",
+  "paperCount": 69400,
+  "dimensions": 3,
+  "file": "data/projection-3d.bin",
+  "format": "little-endian Float32 xyz",
+  "corpusSha256": "59d5d467f5b23cc68484bc44b595bc9587d99ceb498a35a49858285f12a29260",
+  "binarySha256": "f892cbbe1131dc5f7ad6bbaf9f7a5c4920bc150f7f2626cacc9c01f693187828",
+  "source": {
+    "model": "allenai/specter",
+    "modelRevision": "81cbfb43d4fc2e728d5b4201ce14987db8d0854c",
+    "embeddingDimensions": 768,
+    "pcaDimensions": 100,
+    "umapDimensions": 30,
+    "umapNNeighbors": 15,
+    "umapMinDist": 0.0,
+    "umapMetric": "cosine"
+  },
+  "display": {
+    "nNeighbors": 50,
+    "minDist": 0.05,
+    "metric": "euclidean",
+    "epochs": 300,
+    "randomState": 20260826
+  },
+  "metrics": {
+    "trustworthiness15": 0.9838433085526757,
+    "neighbourRecall15": 0.6245866666666666,
+    "neighbourRecall50": 0.681036,
+    "distanceSpearman": 0.35444469913471555,
+    "shapeBalance": 0.7937041507572955,
+    "qualityScore": 0.7505503612402413,
+    "seedNeighbourAgreement15": 0.7745288888888889,
+    "selectionScore": 0.7548664962169979
+  },
+  "baseline2d": {
+    "trustworthiness15": 0.7660817118746233,
+    "neighbourRecall15": 0.12075999999999999,
+    "neighbourRecall50": 0.161388,
+    "distanceSpearman": 0.10762357388078284,
+    "shapeBalance": 0.9022860008838345,
+    "qualityScore": 0.3953651565441964
+  },
+  "testMetrics": {
+    "trustworthiness15": 0.982710068983993,
+    "neighbourRecall15": 0.6275200000000001,
+    "neighbourRecall50": 0.68924,
+    "distanceSpearman": 0.36226213094292564,
+    "shapeBalance": 0.7684978827843327,
+    "qualityScore": 0.7531927372386901
+  },
+  "baseline2dTest": {
+    "trustworthiness15": 0.7687074114258925,
+    "neighbourRecall15": 0.12345333333333333,
+    "neighbourRecall50": 0.164476,
+    "distanceSpearman": 0.10875229224772649,
+    "shapeBalance": 0.848764121611451,
+    "qualityScore": 0.39780288989050167
+  },
+  "normalization": {
+    "center": [
+      6.332790851593018,
+      5.613992691040039,
+      -0.010047629475593567
+    ],
+    "radius": 16.4165096282959,
+    "bounds": {
+      "min": [
+        -0.919120192527771,
+        -0.8423445820808411,
+        -0.8371381759643555
+      ],
+      "max": [
+        0.8252034783363342,
+        0.8522870540618896,
+        0.9078444838523865
+      ]
+    }
+  }
+}

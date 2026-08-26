@@ -73,5 +73,6 @@ Responsive visual checks covered 390×844 phone portrait, 844×390 phone landsca
 - Data validation confirms paper alignment, exact byte length, finite coordinates, centring, unit-radius normalization, bounds, SHA-256 checksum, scan selection, and holdout improvement.
 - TypeScript, ESLint, the GitHub Pages production build, and the application build pass.
 - The browser console remained free of warnings and errors throughout the interaction and responsive matrix.
+- The first live deployment exposed an early-click race before the base map count was available. The view switch now remains disabled until the aligned 2D data has loaded.
 
 The remaining interpretive limitation is intrinsic to UMAP: local neighbourhoods are useful, but global distances, apparent separations, and the orientation of the cloud are not measurements.

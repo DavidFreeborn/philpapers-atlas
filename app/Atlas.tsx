@@ -614,7 +614,7 @@ export default function Atlas() {
   }, [mapData?.count, projection3d]);
 
   const changeDisplayMode = useCallback(async (nextMode: DisplayMode) => {
-    if (nextMode === displayMode || projectionLoading) return;
+    if (!mapData || nextMode === displayMode || projectionLoading) return;
     setProjectionError('');
     setHoveredIndex(null);
     if (nextMode === '2d') {
@@ -633,7 +633,7 @@ export default function Atlas() {
     } finally {
       setProjectionLoading(false);
     }
-  }, [displayMode, loadProjection3d, projectionLoading]);
+  }, [displayMode, loadProjection3d, mapData, projectionLoading]);
 
   const pointGroups = useMemo(() => {
     if (!currentLabels) return new Map<number, number[]>();
@@ -1680,13 +1680,13 @@ export default function Atlas() {
                 className={displayMode === '2d' ? 'active' : ''}
                 onClick={() => void changeDisplayMode('2d')}
                 aria-pressed={displayMode === '2d'}
-                disabled={projectionLoading}
+                disabled={!mapData || projectionLoading}
               >2D</button>
               <button
                 className={displayMode === '3d' ? 'active' : ''}
                 onClick={() => void changeDisplayMode('3d')}
                 aria-pressed={displayMode === '3d'}
-                disabled={projectionLoading}
+                disabled={!mapData || projectionLoading}
               >{projectionLoading ? 'Loading…' : '3D'}</button>
             </div>
             {displayMode === '3d' && (

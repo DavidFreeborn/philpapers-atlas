@@ -471,7 +471,6 @@ export default function Atlas() {
   const [projectionLoading, setProjectionLoading] = useState(false);
   const [projectionError, setProjectionError] = useState('');
   const [camera3d, setCamera3d] = useState<Camera3D>(() => resetCamera3D());
-  const [show3dHelp, setShow3dHelp] = useState(false);
   const [activeCluster, setActiveCluster] = useState<number | null>(null);
   const [showNoise, setShowNoise] = useState(true);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -619,7 +618,6 @@ export default function Atlas() {
     setHoveredIndex(null);
     if (nextMode === '2d') {
       setDisplayMode('2d');
-      setShow3dHelp(false);
       return;
     }
     setProjectionLoading(true);
@@ -1689,38 +1687,12 @@ export default function Atlas() {
                 disabled={!mapData || projectionLoading}
               >{projectionLoading ? 'Loading…' : '3D'}</button>
             </div>
-            {displayMode === '3d' && (
-              <button
-                className="view-help-button"
-                onClick={() => setShow3dHelp((current) => !current)}
-                aria-label="How to use the three-dimensional view"
-                aria-expanded={show3dHelp}
-              >?</button>
-            )}
           </div>
 
           {projectionError && (
             <div className="projection-message projection-error" role="alert">
               {projectionError}
             </div>
-          )}
-
-          {displayMode === '3d' && show3dHelp && (
-            <section className="view-help" aria-label="Three-dimensional view controls">
-              <button onClick={() => setShow3dHelp(false)} aria-label="Close three-dimensional view help">×</button>
-              <h2>Explore in 3D</h2>
-              <dl>
-                <div><dt>Rotate</dt><dd>Drag</dd></div>
-                <div><dt>Move</dt><dd>Shift-drag or right-drag</dd></div>
-                <div><dt>Zoom</dt><dd>Scroll or pinch</dd></div>
-                <div><dt>Select</dt><dd>Click a paper</dd></div>
-                <div><dt>Reset</dt><dd>R</dd></div>
-              </dl>
-              <p>
-                This separate UMAP uses a matching reconstruction of the 30-dimensional analysis pipeline.
-                It preserves more local structure than the flat display, but global distances and orientation remain approximate.
-              </p>
-            </section>
           )}
 
           <canvas

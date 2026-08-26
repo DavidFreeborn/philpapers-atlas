@@ -65,7 +65,7 @@ Production output changed as follows:
 
 No 3D runtime dependency was added. In the local browser harness, a 41-step sustained rotation completed in 297 ms (7.24 ms per delivered input), a GPU hover pick resolved in 19 ms, and a searched paper's title and abstract were ready in 275 ms. These are local measurements rather than guarantees for every device or network.
 
-Responsive visual checks covered 390×844 phone portrait, 844×390 phone landscape, 1,024×768 tablet/small desktop, 1,280×720 desktop, and 1,440×900 full desktop. The cloud retains consistent framing; panels, map controls, the view switch, help, markers, and text remain usable at each breakpoint. Physical two-finger hardware was not available in the browser harness; the underlying zoom and pan mathematics are unit-tested, and the multi-pointer path uses standard pointer capture.
+Responsive visual checks covered 390×844 phone portrait, 844×390 phone landscape, 1,024×768 tablet/small desktop, 1,280×720 desktop, and 1,440×900 full desktop. The cloud retains consistent framing; panels, map controls, the view switch, markers, and text remain usable at each breakpoint. Physical two-finger hardware was not available in the browser harness; the underlying zoom and pan mathematics are unit-tested, and the multi-pointer path uses standard pointer capture.
 
 ## Automated checks
 

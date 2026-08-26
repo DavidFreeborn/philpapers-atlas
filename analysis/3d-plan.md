@@ -22,7 +22,7 @@ The 3D view is a display projection, not a new clustering space. Changing betwee
 - Primary drag rotates the cloud. Shift-drag, middle-drag, or right-drag pans. The wheel or trackpad zooms. Two-finger touch pans and pinches; one finger rotates.
 - Arrow keys rotate, `+` and `−` zoom, and `R` resets the camera.
 - Point hover, selection, paper details, cluster/topic isolation, search focus, and reset work in both views.
-- A restrained help control explains the gestures and the projection's interpretive limitation. No semantic axes are drawn because UMAP orientation has no meaning.
+- No semantic axes are drawn because UMAP orientation has no meaning.
 - Portrait and narrow screens receive a wider effective field of view and touch targets of at least 44 CSS pixels.
 
 ## Rendering architecture

@@ -1840,7 +1840,7 @@ export default function Atlas() {
               <article className="paper-detail">
                 <div className="detail-cluster-label">
                   <span style={{ background: clusterColor(selectedClusterId ?? -1, clusterById) }} />
-                  {selectedCluster?.label ?? 'Unclustered in this lens'}
+                  {selectedCluster?.label ?? 'Unclustered'}
                 </div>
                 <h3>{selectedSearch?.[0] ?? 'Paper details'}</h3>
                 <p className="paper-authors">{selectedSearch?.[1] || 'Authorship not listed'}</p>

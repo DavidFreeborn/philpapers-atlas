@@ -26,6 +26,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
+      - run: python -m pip install numpy==2.4.2
       # The lockfile contains platform-specific optional binaries for the original
       # Windows/Cloudflare build; npm resolves the Linux variant on the runner.
       - run: npm install --no-audit --no-fund

@@ -11,6 +11,7 @@ const eslintConfig = defineConfig([
     'dist/**',
     'pages-dist/**',
     'analysis/3d-work/**',
+    'analysis/robustness-study/work/**',
     'out/**',
     'build/**',
     'next-env.d.ts',

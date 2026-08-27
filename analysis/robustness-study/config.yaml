@@ -1,0 +1,64 @@
+study_version: 1.0.0
+protocol_date: 2026-08-27
+paper_count: 69400
+
+environment:
+  python: 3.12.13
+  numpy: 1.26.4
+  scipy: 1.17.1
+  scikit_learn: 1.8.0
+  umap_learn: 0.5.11
+  hdbscan: 0.8.42
+  pynndescent: 0.6.0
+
+umap_primary:
+  pca_dimensions: 100
+  dimensions: [2, 3, 5, 10, 20, 25, 30]
+  seeds: [11, 23, 42, 73, 101, 211, 307, 419, 547, 809]
+  n_neighbors: 15
+  min_dist: 0.0
+  metric: cosine
+  low_memory: false
+
+hdbscan_reference:
+  min_cluster_size: 200
+  min_samples: 15
+  metric: euclidean
+  cluster_selection_method: eom
+
+hdbscan_grid:
+  min_cluster_size: [75, 100, 150, 200, 300, 500]
+  min_samples: [5, 15, 30, 50]
+  cluster_selection_method: eom
+  leaf_sensitivity: true
+  substantive_min_clusters: 5
+  substantive_max_clusters: 250
+
+pca_sensitivity:
+  dimensions: [50, 100]
+  umap_dimensions: [20, 25, 30]
+
+umap_parameter_sensitivity:
+  n_neighbors: [10, 15, 30, 50]
+  min_dist: [0.0, 0.1]
+  seeds: [42, 211, 547]
+
+resampling:
+  fraction: 0.8
+  repeats: 20
+  seed_start: 104729
+  scale_min_cluster_size_primary: true
+  fixed_min_cluster_size_sensitivity: true
+
+semantic_validation:
+  development_sample: 4000
+  validation_sample: 6000
+  exact_neighbor_audit_sample: 500
+  nearest_neighbors: [15, 50]
+  label_permutations: 100
+  random_seed: 8675309
+
+reporting:
+  bootstrap_confidence: 0.95
+  stability_bands: [0.60, 0.75, 0.85]
+  float_precision: 8

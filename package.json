@@ -14,7 +14,8 @@
     "start": "vinext start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern pages-dist --ignore-pattern .next",
     "test:3d": "node --experimental-strip-types --test scripts/atlas3d.test.ts",
-    "test:3d:data": "python scripts/validate-3d-projection.py"
+    "test:3d:data": "python scripts/validate-3d-projection.py",
+    "test:lenses": "python scripts/validate-lenses-data.py"
   },
   "dependencies": {
     "next": "16.2.6",

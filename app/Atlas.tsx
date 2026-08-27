@@ -48,6 +48,10 @@ type LensMethod = {
   pcaDimensions?: number;
   sourceUmapDimensions?: number;
   umapDimensions?: number;
+  umapNNeighbors?: number;
+  umapMinDist?: number;
+  randomSeed?: number;
+  studySelection?: string;
   clusteringSpace?: 'display2d';
   minClusterSize?: number;
   minSamples?: number;
@@ -83,6 +87,14 @@ type LensMetrics = {
   topicStability?: number;
   assignmentStabilityAri?: number;
   finalScore?: number;
+  resamplingClusterJaccard?: number;
+  resamplingAri?: number;
+  assignmentConsistency?: number;
+  specterKnn50Purity?: number;
+  tfidfCentroidAccuracy?: number;
+  textNpmi?: number;
+  resamplingRuns?: number;
+  collapsedRuns?: number;
 };
 
 type Lens = {
@@ -328,6 +340,7 @@ function MethodContent({ lens }: { lens: Lens }) {
   const method = lens.method;
   const usesDisplaySpace = method.clusteringSpace === 'display2d';
   const isLda = lens.algorithm === 'lda';
+  const hasRobustnessStudyMetrics = lens.metrics.resamplingClusterJaccard !== undefined;
   return (
     <>
       <p className="method-heading">Parameters</p>
@@ -352,8 +365,9 @@ function MethodContent({ lens }: { lens: Lens }) {
                 </>
               ) : (
                 <>
-                  <div><dt>UMAP</dt><dd>{method.umapDimensions}D · cosine · 15 neighbours · min. distance 0</dd></div>
-                  <div><dt>HDBSCAN</dt><dd>min. cluster size {method.minClusterSize} · min. samples {method.minSamples}</dd></div>
+                  <div><dt>UMAP</dt><dd>{method.umapDimensions}D · cosine · {method.umapNNeighbors ?? 15} neighbours · min. distance {method.umapMinDist ?? 0}{method.randomSeed === undefined ? '' : ` · seed ${method.randomSeed}`}</dd></div>
+                  <div><dt>HDBSCAN</dt><dd>min. cluster size {method.minClusterSize} · min. samples {method.minSamples}{method.selectionMethod ? ` · ${method.selectionMethod.toUpperCase()}` : ''}</dd></div>
+                  {method.studySelection && <div><dt>Study selection</dt><dd>{method.studySelection}</dd></div>}
                 </>
               )
             ) : (
@@ -379,11 +393,21 @@ function MethodContent({ lens }: { lens: Lens }) {
               <div title="Mean adjusted Rand agreement with adjacent parameter settings in the scan; higher indicates a less parameter-sensitive result."><dt>Parameter agreement (ARI)</dt><dd>{formatDecimal(lens.metrics.parameterAgreementAri)}</dd></div>
             </>
           ) : (
-            <>
-              <div title="Density-based cluster validity; higher is better."><dt>Relative validity (DBCV)</dt><dd>{formatDecimal(lens.metrics.relativeValidity)}</dd></div>
-              <div title="Mean persistence of the fitted clusters; higher indicates greater stability."><dt>Mean cluster persistence</dt><dd>{formatDecimal(lens.metrics.meanPersistence)}</dd></div>
-              <div title="Mean cluster persistence weighted by the proportion of papers assigned; higher is better."><dt>Persistence-weighted coverage</dt><dd>{formatDecimal(lens.metrics.stabilityWeightedCoverage)}</dd></div>
-            </>
+            hasRobustnessStudyMetrics ? (
+              <>
+                <div title="Density-based cluster validity in this lens's own UMAP space; higher is better within a representation, but values across dimensions are not directly comparable."><dt>Relative validity (DBCV)</dt><dd>{formatDecimal(lens.metrics.relativeValidity)}</dd></div>
+                <div title="Mean size-weighted best-match cluster Jaccard across twenty complete 80% refits, including collapsed runs; higher is more reproducible."><dt>Resampling cluster Jaccard</dt><dd>{formatDecimal(lens.metrics.resamplingClusterJaccard)}</dd></div>
+                <div title="Mean proportion of resampled appearances in which a paper returns to its mapped reference assignment, including the noise assignment."><dt>Paper assignment consistency</dt><dd>{formatDecimal(lens.metrics.assignmentConsistency)}</dd></div>
+                <div title="Proportion of a paper's fifty nearest neighbours in the original SPECTER space that share its cluster assignment."><dt>SPECTER 50-NN purity</dt><dd>{formatDecimal(lens.metrics.specterKnn50Purity)}</dd></div>
+                <div title="Held-out title-and-abstract TF–IDF nearest-centroid assignment accuracy."><dt>Held-out text accuracy</dt><dd>{formatDecimal(lens.metrics.tfidfCentroidAccuracy)}</dd></div>
+              </>
+            ) : (
+              <>
+                <div title="Density-based cluster validity; higher is better."><dt>Relative validity (DBCV)</dt><dd>{formatDecimal(lens.metrics.relativeValidity)}</dd></div>
+                <div title="Mean persistence of the fitted clusters; higher indicates greater stability."><dt>Mean cluster persistence</dt><dd>{formatDecimal(lens.metrics.meanPersistence)}</dd></div>
+                <div title="Mean cluster persistence weighted by the proportion of papers assigned; higher is better."><dt>Persistence-weighted coverage</dt><dd>{formatDecimal(lens.metrics.stabilityWeightedCoverage)}</dd></div>
+              </>
+            )
           )
         ) : (
           <>

@@ -14,6 +14,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 
+ROOT = Path(__file__).resolve().parents[1]
 PAPER_COUNT = 69_400
 DEFAULT_LENS = "pca100_u30_mcs200_ms15"
 DISPLAY_HDBSCAN_LENS = "display_umap2_mcs150_ms50_eom"
@@ -34,6 +35,89 @@ HDBSCAN_LENSES = [
     "pca100_u20_mcs75_ms15",
     "pca100_u30_mcs75_ms5",
 ]
+
+ROBUSTNESS_LENSES = [
+    {
+        "id": "study_u30_mcs200_ms15_seed73",
+        "finalist": "typical_30d_49",
+        "label_path": "robustness-study/work/remote-linux/seed-runs/d30/seed73/labels.npy",
+        "optionLabel": "49 clusters · UMAP 30D · typical",
+        "method": {
+            "pcaDimensions": 100,
+            "umapDimensions": 30,
+            "umapNNeighbors": 15,
+            "umapMinDist": 0.0,
+            "randomSeed": 73,
+            "minClusterSize": 200,
+            "minSamples": 15,
+            "selectionMethod": "eom",
+            "studySelection": "30D seed medoid",
+        },
+        "fit_metrics": ("linux-seed-runs.csv", {"dimension": "30", "seed": "73"}),
+    },
+    {
+        "id": "study_u20_mcs300_ms50_seed42",
+        "finalist": "robust_20d_29",
+        "label_path": "robustness-study/work/runs/hdbscan-grid-pca100/d20/mcs300-ms50-eom/labels.npy",
+        "optionLabel": "29 clusters · UMAP 20D · coarse",
+        "method": {
+            "pcaDimensions": 100,
+            "umapDimensions": 20,
+            "umapNNeighbors": 15,
+            "umapMinDist": 0.0,
+            "randomSeed": 42,
+            "minClusterSize": 300,
+            "minSamples": 50,
+            "selectionMethod": "eom",
+            "studySelection": "coarse robustness finalist",
+        },
+        "fit_metrics": (
+            "pca100-hdbscan-grid.csv",
+            {
+                "dimension": "20",
+                "min_cluster_size": "300",
+                "min_samples": "50",
+                "selection_method": "eom",
+            },
+        ),
+    },
+]
+ROBUSTNESS_LENS_IDS = {item["id"] for item in ROBUSTNESS_LENSES}
+ROBUSTNESS_LABEL_OVERRIDES = {
+    "study_u30_mcs200_ms15_seed73": {
+        11: "Causation & Explanation",
+        14: "Climate & Environmental Ethics",
+        16: "Phenomenology (Husserl/Merleau-Ponty)",
+        18: "Metaphilosophy & Worldview",
+        24: "Cognitive Science & Computation",
+        26: "Philosophy of Consciousness",
+        28: "History & Historiography of Philosophy",
+        35: "Gender, Race & Sexuality",
+        36: "History of Analytic Philosophy",
+        38: "Ontology & Natural Kinds",
+        39: "Philosophy of Law",
+        40: "Philosophy of Economics",
+        41: "Ethics of War",
+        42: "Political Philosophy & Democracy",
+        43: "Epistemology & Belief",
+        45: "Management & Leadership",
+        46: "Philosophy of Education",
+        48: "Philosophy of Mathematics & Logic",
+    },
+    "study_u20_mcs300_ms50_seed42": {
+        4: "Bioethics & Medicine",
+        5: "Abortion & Reproductive Ethics",
+        7: "Climate & Environmental Ethics",
+        9: "Research Ethics & Philosophy of Inquiry",
+        15: "Decision Theory & Aggregation",
+        17: "Mind, Perception & Consciousness",
+        18: "Philosophy of Emotion",
+        22: "Religion & History of Philosophy",
+        23: "Aesthetics, Art & Film",
+        26: "Philosophy of Mathematics & Logic",
+        28: "Philosophy of Language & Semantics",
+    },
+}
 
 KMEANS_NAMES = {
     0: "Education & Learning",
@@ -64,6 +148,14 @@ def read_csv_by_key(path: Path, key: str) -> dict[str, str]:
             if row.get("config_key") == key:
                 return row
     raise ValueError(f"No metrics found for {key} in {path}")
+
+
+def read_csv_where(path: Path, expected: dict[str, str]) -> dict[str, str]:
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            if all(row.get(field) == value for field, value in expected.items()):
+                return row
+    raise ValueError(f"No row matching {expected} in {path}")
 
 
 def parse_config(key: str) -> dict[str, int]:
@@ -413,6 +505,94 @@ def display_cluster_rows(
     return rows
 
 
+def load_robustness_label_sets(analysis_data: Path) -> dict[str, np.ndarray]:
+    labels_by_lens: dict[str, np.ndarray] = {}
+    for spec in ROBUSTNESS_LENSES:
+        path = analysis_data / spec["label_path"]
+        labels = np.load(path, allow_pickle=False)
+        if labels.shape != (PAPER_COUNT,):
+            raise ValueError(f"Unexpected robustness-study labels at {path}: {labels.shape}")
+        labels_by_lens[spec["id"]] = labels
+    return labels_by_lens
+
+
+def robustness_lens_rows(
+    analysis_data: Path,
+    labels_output: Path,
+    labels_by_lens: dict[str, np.ndarray],
+    terms_by_lens: dict[str, dict[int, list[str]]],
+    reference_lens: dict,
+    reference_labels: np.ndarray,
+) -> list[dict]:
+    results = analysis_data / "robustness-study" / "results"
+    lenses: list[dict] = []
+    for spec in ROBUSTNESS_LENSES:
+        lens_id = spec["id"]
+        finalist = spec["finalist"]
+        labels = labels_by_lens[lens_id]
+        fit_file, fit_match = spec["fit_metrics"]
+        fit = read_csv_where(results / fit_file, fit_match)
+        resampling = read_csv_where(
+            results / "full-resampling-summary.csv",
+            {"finalist": finalist, "strategy": "scaled"},
+        )
+        consensus = read_csv_where(
+            results / "consensus-paper-summary.csv",
+            {"finalist": finalist},
+        )
+        semantic = read_csv_where(
+            results / "semantic-summary.csv",
+            {"finalist": finalist},
+        )
+        noise_count = int(np.count_nonzero(labels < 0))
+        cluster_count = int(np.unique(labels[labels >= 0]).size)
+        metrics = {
+            "relativeValidity": float(fit["relative_validity"]),
+            "meanPersistence": float(fit["persistence_mean"]),
+            "resamplingClusterJaccard": float(resampling["cluster_jaccard_weighted_mean"]),
+            "resamplingAri": float(resampling["ari_all_mean"]),
+            "assignmentConsistency": float(consensus["assignment_consistency_mean"]),
+            "specterKnn50Purity": float(semantic["specter_knn50_purity_micro"]),
+            "tfidfCentroidAccuracy": float(semantic["tfidf_centroid_accuracy"]),
+            "textNpmi": float(semantic["text_npmi_macro"]),
+            "resamplingRuns": int(resampling["runs"]),
+            "collapsedRuns": int(resampling["degenerate_runs_lt5_clusters"]),
+        }
+        if fit.get("persistence_weighted_coverage"):
+            metrics["stabilityWeightedCoverage"] = float(fit["persistence_weighted_coverage"])
+        write_labels(labels, labels_output / f"{lens_id}.bin")
+        clusters = display_cluster_rows(
+            labels,
+            terms_by_lens[lens_id],
+            reference_lens,
+            reference_labels,
+        )
+        overrides = ROBUSTNESS_LABEL_OVERRIDES[lens_id]
+        for cluster in clusters:
+            if cluster["id"] in overrides:
+                cluster["label"] = overrides[cluster["id"]]
+        cluster_names = [cluster["label"] for cluster in clusters]
+        if len(cluster_names) != len(set(cluster_names)):
+            raise ValueError(f"Duplicate reviewed cluster name in {lens_id}")
+        lenses.append(
+            {
+                "id": lens_id,
+                "name": f"HDBSCAN · {cluster_count} clusters",
+                "optionLabel": spec["optionLabel"],
+                "algorithm": "hdbscan",
+                "preferred": False,
+                "labelsFile": f"data/lenses/labels/{lens_id}.bin",
+                "clusterCount": cluster_count,
+                "noiseCount": noise_count,
+                "noisePct": round(noise_count / PAPER_COUNT * 100, 2),
+                "method": spec["method"],
+                "metrics": metrics,
+                "clusters": clusters,
+            }
+        )
+    return lenses
+
+
 def load_lda_lenses(
     analysis_data: Path,
     labels_output: Path,
@@ -509,11 +689,14 @@ def build(source: Path, public_data: Path, analysis_data: Path) -> None:
 
     kmeans_labels = np.load(source / "kmeans10" / "labels.npy", allow_pickle=False)
     labels_by_lens["kmeans_pca100_k10"] = kmeans_labels
+    robustness_labels = load_robustness_label_sets(analysis_data)
+    labels_by_lens.update(robustness_labels)
     terms_by_lens = cluster_terms(
         public_data,
         {
             DISPLAY_HDBSCAN_LENS: display_labels,
             "kmeans_pca100_k10": kmeans_labels,
+            **robustness_labels,
         },
     )
 
@@ -522,6 +705,16 @@ def build(source: Path, public_data: Path, analysis_data: Path) -> None:
     display_noise_count = int((display_labels < 0).sum())
     display_cluster_count = len(np.unique(display_labels[display_labels >= 0]))
     reference_lens = next(lens for lens in lenses if lens["id"] == DEFAULT_LENS)
+    study_lenses = robustness_lens_rows(
+        analysis_data,
+        labels_output,
+        robustness_labels,
+        terms_by_lens,
+        reference_lens,
+        labels_by_lens[DEFAULT_LENS],
+    )
+    default_index = next(index for index, lens in enumerate(lenses) if lens["id"] == DEFAULT_LENS)
+    lenses[default_index + 1:default_index + 1] = study_lenses
     lenses.append(
         {
             "id": DISPLAY_HDBSCAN_LENS,
@@ -605,7 +798,7 @@ def build(source: Path, public_data: Path, analysis_data: Path) -> None:
     assign_consistent_colours(lenses, labels_by_lens)
 
     catalog = {
-        "version": "2.3.0",
+        "version": "2.4.0",
         "paperCount": PAPER_COUNT,
         "defaultLens": DEFAULT_LENS,
         "projection": {
@@ -623,6 +816,43 @@ def build(source: Path, public_data: Path, analysis_data: Path) -> None:
         encoding="utf-8",
     )
     print(f"Wrote {len(lenses)} lenses to {output}")
+
+
+def update_robustness_lenses(public_data: Path, analysis_data: Path) -> None:
+    """Add the frozen robustness-study finalists to an existing catalogue."""
+    output = public_data / "lenses"
+    labels_output = output / "labels"
+    catalog_path = output / "catalog.json"
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    lenses = [lens for lens in catalog["lenses"] if lens["id"] not in ROBUSTNESS_LENS_IDS]
+    labels_by_lens = {
+        lens["id"]: np.fromfile(public_data.parent / lens["labelsFile"], dtype="<i2")
+        for lens in lenses
+    }
+    if any(labels.shape != (PAPER_COUNT,) for labels in labels_by_lens.values()):
+        raise ValueError("An existing lens assignment file has an unexpected length")
+    reference_lens = next(lens for lens in lenses if lens["id"] == DEFAULT_LENS)
+    robustness_labels = load_robustness_label_sets(analysis_data)
+    terms_by_lens = cluster_terms(public_data, robustness_labels)
+    study_lenses = robustness_lens_rows(
+        analysis_data,
+        labels_output,
+        robustness_labels,
+        terms_by_lens,
+        reference_lens,
+        labels_by_lens[DEFAULT_LENS],
+    )
+    default_index = next(index for index, lens in enumerate(lenses) if lens["id"] == DEFAULT_LENS)
+    lenses[default_index + 1:default_index + 1] = study_lenses
+    labels_by_lens.update(robustness_labels)
+    assign_consistent_colours(lenses, labels_by_lens)
+    catalog["version"] = "2.4.0"
+    catalog["lenses"] = lenses
+    catalog_path.write_text(
+        json.dumps(catalog, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    print(f"Updated {catalog_path} with {len(study_lenses)} robustness-study lenses")
 
 
 def update_lda_lenses(public_data: Path, analysis_data: Path) -> None:
@@ -645,7 +875,7 @@ def update_lda_lenses(public_data: Path, analysis_data: Path) -> None:
     lenses.extend(lda_lenses)
     labels_by_lens.update(lda_labels)
     assign_consistent_colours(lenses, labels_by_lens)
-    catalog["version"] = "2.3.0"
+    catalog["version"] = "2.4.0"
     catalog["lenses"] = lenses
     catalog_path.write_text(
         json.dumps(catalog, ensure_ascii=False, separators=(",", ":")),
@@ -659,16 +889,24 @@ def main() -> None:
     parser.add_argument("--source", type=Path)
     parser.add_argument("--public-data", type=Path, default=Path("public/data"))
     parser.add_argument("--analysis-data", type=Path, default=Path("analysis"))
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--lda-only",
         action="store_true",
         help="update LDA lenses in an existing generated catalogue",
     )
+    mode.add_argument(
+        "--robustness-only",
+        action="store_true",
+        help="update robustness-study lenses in an existing generated catalogue",
+    )
     args = parser.parse_args()
     if args.lda_only:
         update_lda_lenses(args.public_data.resolve(), args.analysis_data.resolve())
+    elif args.robustness_only:
+        update_robustness_lenses(args.public_data.resolve(), args.analysis_data.resolve())
     elif args.source is None:
-        parser.error("--source is required unless --lda-only is used")
+        parser.error("--source is required unless an update-only mode is used")
     else:
         build(args.source.resolve(), args.public_data.resolve(), args.analysis_data.resolve())
 

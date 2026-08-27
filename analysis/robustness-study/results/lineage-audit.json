@@ -1,0 +1,67 @@
+{
+  "canonical_fit": {
+    "ari_to_published": 1.0,
+    "cluster_count": 42,
+    "cluster_size_gini": 0.5595141608254932,
+    "cluster_size_max": 9877,
+    "cluster_size_median": 512.0,
+    "cluster_size_min": 207,
+    "coverage": 0.69335734870317,
+    "fit_seconds": 5.483583600027487,
+    "membership_mean_assigned": 0.8846122846359754,
+    "membership_median_assigned": 1.0,
+    "n_papers": 69400,
+    "noise_count": 21281,
+    "noise_pct": 30.664265129683,
+    "persistence_mean": 0.19542572285618084,
+    "persistence_median": 0.1473096032075742,
+    "persistence_weighted_coverage": 0.1024295159207546,
+    "relative_validity": 0.4215738882919922
+  },
+  "generated_at": "2026-08-27T12:10:41.191038+00:00",
+  "historical_fit": {
+    "ari_to_published": 0.00684376001391832,
+    "cluster_count": 4,
+    "cluster_size_gini": 0.7385726233219421,
+    "cluster_size_max": 68464,
+    "cluster_size_median": 335.0,
+    "cluster_size_min": 217,
+    "coverage": 0.9992939481268012,
+    "fit_seconds": 4.869892899878323,
+    "membership_mean_assigned": 0.9949138653657661,
+    "membership_median_assigned": 1.0,
+    "n_papers": 69400,
+    "noise_count": 49,
+    "noise_pct": 0.07060518731988473,
+    "persistence_mean": 0.5127474946761634,
+    "persistence_median": 0.5350238246753055,
+    "persistence_weighted_coverage": 0.07946532070594642,
+    "relative_validity": 0.11794012099923591
+  },
+  "neighbor_overlap": {
+    "k15": {
+      "mean": 0.5930624604225159,
+      "median": 0.6000000238418579,
+      "q05": 0.13333334028720856,
+      "q95": 0.8666666746139526
+    },
+    "k50": {
+      "mean": 0.7056738138198853,
+      "median": 0.7400000095367432,
+      "q05": 0.36000001430511475,
+      "q95": 0.9200000166893005
+    }
+  },
+  "paper_order_exact": true,
+  "pca_arrays_byte_identical": true,
+  "trustworthiness_sample": {
+    "canonical_umap30_from_pca100": 0.9658124507585282,
+    "historical_umap2_from_historical_umap30": 0.922935655016344,
+    "historical_umap2_from_pca100": 0.8908729234766575,
+    "historical_umap30_from_pca100": 0.9657589305171402,
+    "sample_size": 4000
+  },
+  "umap30_arrays_byte_identical": false,
+  "umap30_flat_correlation": -0.23255987735167316,
+  "umap30_mean_absolute_difference": 3.356177806854248
+}

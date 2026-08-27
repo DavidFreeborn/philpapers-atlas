@@ -1,0 +1,197 @@
+{
+  "environment": {
+    "packages": {
+      "hdbscan": "0.8.42",
+      "matplotlib": "3.11.1",
+      "numpy": "1.26.4",
+      "openpyxl": "3.1.5",
+      "pandas": "3.0.5",
+      "pynndescent": "0.6.0",
+      "scikit-learn": "1.8.0",
+      "scipy": "1.17.1",
+      "umap-learn": "0.5.11"
+    },
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13 (main, Aug  7 2026, 02:26:41) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "files": [
+    {
+      "bytes": 27760128,
+      "expected_sha256": "ddabc6dba24d264e16cac434c059f9dcb2d5b169fee36cea8b771ac7cd1feb20",
+      "hash_verified": true,
+      "path": "canonical/pca100.npy",
+      "sha256": "ddabc6dba24d264e16cac434c059f9dcb2d5b169fee36cea8b771ac7cd1feb20"
+    },
+    {
+      "bytes": 5552128,
+      "expected_sha256": "0b06d353f1888de0119698534b624d673a205570e1b37292af8c7c8e85336607",
+      "hash_verified": true,
+      "path": "canonical/umap20.npy",
+      "sha256": "0b06d353f1888de0119698534b624d673a205570e1b37292af8c7c8e85336607"
+    },
+    {
+      "bytes": 6940128,
+      "expected_sha256": "f0eba27f33910c9be003b82d89374c39c5266fd1fa9853a5c5faa922f0bf74b8",
+      "hash_verified": true,
+      "path": "canonical/umap25.npy",
+      "sha256": "f0eba27f33910c9be003b82d89374c39c5266fd1fa9853a5c5faa922f0bf74b8"
+    },
+    {
+      "bytes": 8328128,
+      "expected_sha256": "61ae465ed22afb1aca82fb1e3a8e92a1d543db497ea03076049b0b7df4aab9a8",
+      "hash_verified": true,
+      "path": "canonical/umap30.npy",
+      "sha256": "61ae465ed22afb1aca82fb1e3a8e92a1d543db497ea03076049b0b7df4aab9a8"
+    },
+    {
+      "bytes": 13880128,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "canonical-pca50/pca50.npy",
+      "sha256": "29f1cdf3717c39f934247a754f0c817e587b7aaf6ea8a029b075e11a151068b1"
+    },
+    {
+      "bytes": 5552128,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "canonical-pca50/umap20.npy",
+      "sha256": "dc425adba95c396840c5726bd3e2fd1e6dbee3a12d822b32ff8cc77bda4114e0"
+    },
+    {
+      "bytes": 6940128,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "canonical-pca50/umap25.npy",
+      "sha256": "2b40a53de750039cee067712a9f975188e3398da6e43a957eae8dbfdab156c97"
+    },
+    {
+      "bytes": 8328128,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "canonical-pca50/umap30.npy",
+      "sha256": "4df414de81bddafe5511069d90e4f23e008f22449d56968f82838603463d7f96"
+    },
+    {
+      "bytes": 5275195,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "document_ids.txt",
+      "sha256": "1c14431a63a891cdf74056a326f24f2785ed66c02cc1461f66db7e8c01325b77"
+    },
+    {
+      "bytes": 12535684,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "embedding_metadata.json",
+      "sha256": "7512b17a9a8e72ba0ce157c23114cab1574dd65f6655b077c2165f60e957b2ba"
+    },
+    {
+      "bytes": 225607808,
+      "expected_sha256": "0f98bf9256b205b94dde8e8ab9078b55312c55e591bcafabd97bbdb446f4721f",
+      "hash_verified": true,
+      "path": "embeddings.npy",
+      "sha256": "0f98bf9256b205b94dde8e8ab9078b55312c55e591bcafabd97bbdb446f4721f"
+    },
+    {
+      "bytes": 555328,
+      "expected_sha256": "4ae97ff835edb0b5591ff72df8954e784c5b9a6a6f6794225ac280cb794afd2c",
+      "hash_verified": true,
+      "path": "english_indices.npy",
+      "sha256": "4ae97ff835edb0b5591ff72df8954e784c5b9a6a6f6794225ac280cb794afd2c"
+    },
+    {
+      "bytes": 11132,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "hdbscan_metrics.csv",
+      "sha256": "5f4227c51047530f5116d2184df4c4f4d6c1515bb656dc1a4aa56ea901976b91"
+    },
+    {
+      "bytes": 10988,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "hdbscan_metrics_pca50.csv",
+      "sha256": "e73cd5b71aa08e3d0ed2da22c9c25f6ffb3bda974d5d45fa0dc5515b50b81bbd"
+    },
+    {
+      "bytes": 28039963,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "philpapers_metadata.xlsx",
+      "sha256": "5e1f85ece366d8a720d3c0d4812a2ee02bc1a9935789d6ab6c19a0d943af1512"
+    },
+    {
+      "bytes": 1653,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "preferred-cache/cache_metadata.json",
+      "sha256": "b6ed5efd6a09caa0d67d8782e1ca9184b583fa9e1c51cc170c26623e1e203e9e"
+    },
+    {
+      "bytes": 27760128,
+      "expected_sha256": "ddabc6dba24d264e16cac434c059f9dcb2d5b169fee36cea8b771ac7cd1feb20",
+      "hash_verified": true,
+      "path": "preferred-cache/pca100.npy",
+      "sha256": "ddabc6dba24d264e16cac434c059f9dcb2d5b169fee36cea8b771ac7cd1feb20"
+    },
+    {
+      "bytes": 555328,
+      "expected_sha256": "efb1359d841bb67cb9a6fa4a74490efb87db51a95c0faa74819e85250d6765c4",
+      "hash_verified": true,
+      "path": "preferred-cache/umap2.npy",
+      "sha256": "efb1359d841bb67cb9a6fa4a74490efb87db51a95c0faa74819e85250d6765c4"
+    },
+    {
+      "bytes": 8328128,
+      "expected_sha256": "d97c16cc9a152fcd1ffa2379d842f330d1e1440a982d3e4408ad36bf5df20047",
+      "hash_verified": true,
+      "path": "preferred-cache/umap30.npy",
+      "sha256": "d97c16cc9a152fcd1ffa2379d842f330d1e1440a982d3e4408ad36bf5df20047"
+    },
+    {
+      "bytes": 277728,
+      "expected_sha256": "41528899916696751b903b7d852430b088a162d184bf78c3b9da1c39b4040125",
+      "hash_verified": true,
+      "path": "preferred-labels.npy",
+      "sha256": "41528899916696751b903b7d852430b088a162d184bf78c3b9da1c39b4040125"
+    },
+    {
+      "bytes": 1038,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "preferred-pipeline.yaml",
+      "sha256": "39059a17a4b1bed25059c9107788e9d3cba606135150fb7eeaa1e4d1e599a0d4"
+    },
+    {
+      "bytes": 464,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "unified-preferred/cluster_persistence.npy",
+      "sha256": "d2d586f1a56cc04332bbcdf15e29649ff6e529b670603aee38f62d0d49945381"
+    },
+    {
+      "bytes": 491,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "unified-preferred/fit_summary.json",
+      "sha256": "056b4bb802569235ae95ab328793fac38c54d91a4dab4522d326cd001366c66a"
+    },
+    {
+      "bytes": 277728,
+      "expected_sha256": "41528899916696751b903b7d852430b088a162d184bf78c3b9da1c39b4040125",
+      "hash_verified": true,
+      "path": "unified-preferred/labels.npy",
+      "sha256": "41528899916696751b903b7d852430b088a162d184bf78c3b9da1c39b4040125"
+    },
+    {
+      "bytes": 19,
+      "expected_sha256": null,
+      "hash_verified": true,
+      "path": "unified-preferred/relative_validity.txt",
+      "sha256": "58c1d6f2b51ae35bae60a97da95dcdf5362ab351f125efd8db4944612bf3a4dc"
+    }
+  ],
+  "generated_at": "2026-08-27T12:11:21.736297+00:00",
+  "remote_project": "/projects/ComputationalPhilosophyLab/LitReview",
+  "root": "analysis/robustness-study/work/source"
+}

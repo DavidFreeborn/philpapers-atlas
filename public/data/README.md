@@ -23,6 +23,18 @@ model metadata, and assignments are also stored under `analysis/`; reproduce the
 with `scripts/scan-lda.py`, then update an existing catalogue with
 `scripts/build-lenses-data.py --lda-only`.
 
+The two robustness-study HDBSCAN lenses use the exact frozen 30D/49-cluster and
+20D/29-cluster assignments evaluated in `analysis/robustness-study/REPORT.md`.
+Regenerate their labels, reviewed provisional names, metrics, and overlap-matched
+colours with `scripts/build-lenses-data.py --robustness-only`. Validate every
+catalogue entry with `scripts/validate-lenses-data.py`.
+
+The two robustness-study HDBSCAN lenses use the exact frozen 30D/49-cluster and
+20D/29-cluster assignments evaluated in `analysis/robustness-study/REPORT.md`.
+Regenerate their labels, provisional names, metrics, and overlap-matched colours
+with `scripts/build-lenses-data.py --robustness-only`. Validate every catalogue
+entry with `scripts/validate-lenses-data.py`.
+
 The optional 3D data can be reproduced with `scripts/build-3d-projection.py`.
 The script pins the SPECTER model revision, rebuilds the 100D PCA and 30D source
 UMAP, evaluates ten 3D UMAP configurations, checks the two finalists across

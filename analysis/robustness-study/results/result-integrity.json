@@ -1,0 +1,62 @@
+{
+  "cluster-audit.csv": {
+    "columns": 38,
+    "missing_cells": 921,
+    "rows": 406
+  },
+  "consensus-coassignment-summary.csv": {
+    "columns": 10,
+    "missing_cells": 0,
+    "rows": 14
+  },
+  "cross-platform-seeds.csv": {
+    "columns": 13,
+    "missing_cells": 0,
+    "rows": 15
+  },
+  "finalist-evidence.csv": {
+    "columns": 56,
+    "missing_cells": 11,
+    "rows": 7
+  },
+  "full-resampling-summary.csv": {
+    "columns": 23,
+    "missing_cells": 0,
+    "rows": 12
+  },
+  "linux-seed-summary.csv": {
+    "columns": 15,
+    "missing_cells": 0,
+    "rows": 3
+  },
+  "pca100-hdbscan-grid.csv": {
+    "columns": 30,
+    "missing_cells": 14,
+    "rows": 175
+  },
+  "pca100-seed-summary.csv": {
+    "columns": 20,
+    "missing_cells": 0,
+    "rows": 7
+  },
+  "pca50-seed-summary.csv": {
+    "columns": 20,
+    "missing_cells": 0,
+    "rows": 3
+  },
+  "semantic-null.csv": {
+    "columns": 3,
+    "missing_cells": 0,
+    "rows": 700
+  },
+  "semantic-summary.csv": {
+    "columns": 26,
+    "missing_cells": 0,
+    "rows": 7
+  },
+  "umap-sensitivity-cells.csv": {
+    "columns": 14,
+    "missing_cells": 0,
+    "rows": 32
+  }
+}

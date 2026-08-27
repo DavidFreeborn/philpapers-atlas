@@ -1,0 +1,11 @@
+{
+  "development_sample": 4000,
+  "finalists_frozen_before_semantic_evaluation": true,
+  "silhouette_sample_cap": 2000,
+  "text_coherence_basis": "training documents; validation is reserved for centroid separation",
+  "tfidf_features": 37979,
+  "tfidf_fit_and_transform_seconds": 85.6303224998992,
+  "tfidf_training_documents": 63400,
+  "validation_sample": 6000,
+  "validation_selected_before_semantic_evaluation": true
+}

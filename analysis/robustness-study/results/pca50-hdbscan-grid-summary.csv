@@ -1,0 +1,4 @@
+pca_dimensions,dimension,grid_cells,nondegenerate_cells,pareto_cells,best_dbcv_mcs,best_dbcv_ms,best_dbcv,best_dbcv_clusters,best_dbcv_noise_pct
+50,20,24,13,5,300,15,0.4010742276838277,29,33.37896253602305
+50,25,24,15,5,500,15,0.41196997654351836,22,33.96253602305476
+50,30,24,16,8,500,50,0.35995583924029917,22,35.29827089337176

@@ -1,0 +1,101 @@
+frozen_date: 2026-08-27
+selection_basis: structural_only
+
+finalists:
+  - id: current_30d_42
+    label: Current 30D / 42 clusters
+    kind: umap
+    pca_dimensions: 100
+    umap_dimensions: 30
+    umap_n_neighbors: 15
+    umap_min_dist: 0.0
+    reference_seed: 42
+    min_cluster_size: 200
+    min_samples: 15
+    hdbscan_implementation: hdbscan
+    reference_embedding: analysis/robustness-study/work/source/canonical/umap30.npy
+    reference_labels: analysis/robustness-study/work/source/preferred-labels.npy
+
+  - id: typical_30d_49
+    label: Typical seeded 30D / 49 clusters
+    kind: umap
+    pca_dimensions: 100
+    umap_dimensions: 30
+    umap_n_neighbors: 15
+    umap_min_dist: 0.0
+    reference_seed: 73
+    min_cluster_size: 200
+    min_samples: 15
+    hdbscan_implementation: hdbscan
+    reference_embedding: analysis/robustness-study/work/remote-linux/seed-runs/d30/seed73/embedding.npy
+    reference_labels: analysis/robustness-study/work/remote-linux/seed-runs/d30/seed73/labels.npy
+
+  - id: robust_20d_49
+    label: Parameter-stable 20D / 49 clusters
+    kind: umap
+    pca_dimensions: 100
+    umap_dimensions: 20
+    umap_n_neighbors: 15
+    umap_min_dist: 0.0
+    reference_seed: 42
+    min_cluster_size: 150
+    min_samples: 50
+    hdbscan_implementation: hdbscan
+    reference_embedding: analysis/robustness-study/work/source/canonical/umap20.npy
+    reference_labels: analysis/robustness-study/work/runs/hdbscan-grid-pca100/d20/mcs150-ms50-eom/labels.npy
+
+  - id: robust_20d_29
+    label: High-DBCV 20D / 29 clusters
+    kind: umap
+    pca_dimensions: 100
+    umap_dimensions: 20
+    umap_n_neighbors: 15
+    umap_min_dist: 0.0
+    reference_seed: 42
+    min_cluster_size: 300
+    min_samples: 50
+    hdbscan_implementation: hdbscan
+    reference_embedding: analysis/robustness-study/work/source/canonical/umap20.npy
+    reference_labels: analysis/robustness-study/work/runs/hdbscan-grid-pca100/d20/mcs300-ms50-eom/labels.npy
+
+  - id: direct_2d_70
+    label: Direct 2D medoid / 70 clusters
+    kind: umap
+    pca_dimensions: 100
+    umap_dimensions: 2
+    umap_n_neighbors: 15
+    umap_min_dist: 0.0
+    reference_seed: 547
+    min_cluster_size: 200
+    min_samples: 15
+    hdbscan_implementation: hdbscan
+    reference_embedding: analysis/robustness-study/work/remote-linux/seed-runs/d2/seed547/embedding.npy
+    reference_labels: analysis/robustness-study/work/remote-linux/seed-runs/d2/seed547/labels.npy
+
+  - id: direct_2d_historical_params
+    label: Direct 2D historical parameters / 63 clusters
+    kind: umap
+    pca_dimensions: 100
+    umap_dimensions: 2
+    umap_n_neighbors: 15
+    umap_min_dist: 0.0
+    reference_seed: 11
+    min_cluster_size: 150
+    min_samples: 50
+    hdbscan_implementation: sklearn
+    reference_embedding: analysis/robustness-study/work/runs/umap-pca100/d2/seed11/embedding.npy
+    reference_labels: analysis/robustness-study/work/runs/umap-pca100/d2/seed11/labels-sklearn-mcs150-ms50.npy
+
+  - id: historical_display_2d_104
+    label: Historical display 2D / 104 clusters
+    kind: fixed_display
+    pca_dimensions: 100
+    umap_dimensions: 2
+    umap_n_neighbors: 15
+    umap_min_dist: 0.1
+    reference_seed: null
+    min_cluster_size: 150
+    min_samples: 50
+    hdbscan_implementation: sklearn
+    reference_embedding: analysis/robustness-study/work/source/preferred-cache/umap2.npy
+    reference_labels: analysis/hdbscan-2d-labels.npy

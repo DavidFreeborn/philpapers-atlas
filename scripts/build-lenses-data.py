@@ -19,7 +19,7 @@ PAPER_COUNT = 69_400
 DEFAULT_LENS = "pca100_u30_mcs200_ms15"
 DISPLAY_HDBSCAN_LENS = "display_umap2_mcs150_ms50_eom"
 LDA_LENSES = ["lda_k20_default", "lda_k60_default"]
-COLOUR_MATCH_JACCARD = 0.80
+COLOUR_MATCH_JACCARD = 0.70
 MAP_BACKGROUND = "#12121a"
 MIN_POINT_CONTRAST = 4.5
 
@@ -798,7 +798,7 @@ def build(source: Path, public_data: Path, analysis_data: Path) -> None:
     assign_consistent_colours(lenses, labels_by_lens)
 
     catalog = {
-        "version": "2.4.0",
+        "version": "2.5.0",
         "paperCount": PAPER_COUNT,
         "defaultLens": DEFAULT_LENS,
         "projection": {
@@ -846,7 +846,7 @@ def update_robustness_lenses(public_data: Path, analysis_data: Path) -> None:
     lenses[default_index + 1:default_index + 1] = study_lenses
     labels_by_lens.update(robustness_labels)
     assign_consistent_colours(lenses, labels_by_lens)
-    catalog["version"] = "2.4.0"
+    catalog["version"] = "2.5.0"
     catalog["lenses"] = lenses
     catalog_path.write_text(
         json.dumps(catalog, ensure_ascii=False, separators=(",", ":")),
@@ -875,7 +875,7 @@ def update_lda_lenses(public_data: Path, analysis_data: Path) -> None:
     lenses.extend(lda_lenses)
     labels_by_lens.update(lda_labels)
     assign_consistent_colours(lenses, labels_by_lens)
-    catalog["version"] = "2.4.0"
+    catalog["version"] = "2.5.0"
     catalog["lenses"] = lenses
     catalog_path.write_text(
         json.dumps(catalog, ensure_ascii=False, separators=(",", ":")),

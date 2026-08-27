@@ -18,14 +18,17 @@ npm run dev:pages
 ```bash
 npm run lint
 npx tsc --noEmit
+npm run test:search
 npm run test:3d
 npm run test:3d:data
+npm run test:lenses
+npm run test:exploration
 npm run build:pages
 ```
 
 ## Rebuild the browser data
 
-`scripts/build-map-data.py` converts the saved NumPy outputs and PhilPapers metadata workbook into compact map/search files and lazy detail shards under `public/data/`. `scripts/build-lenses-data.py` converts the reviewed alternative clusterings into a metadata catalogue and 139 KB assignment arrays. `scripts/scan-hdbscan-2d.py` reproduces the 60-configuration parameter scan used to select the display-space lens. `scripts/scan-lda.py` reproduces the LDA model scan and exports its evaluation tables and assignments. `scripts/build-3d-projection.py` rebuilds and evaluates the optional 3D projection. See `public/data/README.md` for the required source files.
+`scripts/build-map-data.py` converts the saved NumPy outputs and PhilPapers metadata workbook into compact map/search files and lazy detail shards under `public/data/`. `scripts/build-lenses-data.py` converts the reviewed alternative clusterings into a metadata catalogue and 139 KB assignment arrays. `scripts/build-exploration-data.py` exports SPECTER nearest-neighbour shards and the ten papers nearest each cluster's SPECTER centroid. `scripts/scan-hdbscan-2d.py` reproduces the 60-configuration parameter scan used to select the display-space lens. `scripts/scan-lda.py` reproduces the LDA model scan and exports its evaluation tables and assignments. `scripts/build-3d-projection.py` rebuilds and evaluates the optional 3D projection. See `public/data/README.md` for the required source files.
 
 ## Analytical pipeline represented
 
@@ -37,4 +40,4 @@ The preferred view has 42 clusters and labels 21,281 papers as HDBSCAN noise. Al
 
 The LDA scan uses titles (weighted twice) and abstracts, represented by a 14,104-term unigram-and-bigram count vocabulary. It evaluates 20 combinations of topic count and document/topic priors on an 80/10/10 train/validation/test split. Six validation finalists are fitted at three random seeds before the sealed test set is opened. Selection considers held-out perplexity and NPMI coherence, topic diversity and exclusivity, dominant-topic strength, matched topic-word stability, and dominant-assignment agreement. The 20- and 60-topic models passed qualitative review; the 100-topic candidate was rejected because it contained too many small, mixed topics and large generic catch-alls. LDA is a mixed-membership model, so the atlas colour is each paper's highest-probability topic rather than a claim that the paper belongs exclusively to one topic.
 
-The map uses WebGL 2 to draw the complete point cloud in a single GPU call. The 813 KiB 3D coordinate file is fetched only when 3D is first selected. Camera changes render on demand rather than through a permanent animation loop, and 3D paper picking uses a capped off-screen GPU identity buffer. Lens changes update existing GPU buffers rather than rebuilding the renderer. Core paper metadata is loaded up front; compact label arrays and smaller abstract-only shards are fetched on demand and cached.
+The map uses WebGL 2 to draw the complete point cloud in a single GPU call. A dynamic per-point GPU mask supports single-cluster, multi-cluster, and semantic-neighbour emphasis without rebuilding the renderer. The 813 KiB 3D coordinate file is fetched only when 3D is first selected. Camera changes render on demand rather than through a permanent animation loop, and 3D paper picking uses a capped off-screen GPU identity buffer. Lens changes update existing GPU buffers rather than rebuilding the renderer. Core paper metadata is loaded up front; compact label arrays, abstract shards, and 18 KB semantic-neighbour shards are fetched on demand and cached. Search normalises punctuation and diacritics and uses order-independent token matching, so author names work in either display order.

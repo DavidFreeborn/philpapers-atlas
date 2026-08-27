@@ -16,7 +16,8 @@ CATALOG_PATH = PUBLIC / "data" / "lenses" / "catalog.json"
 PAPER_COUNT = 69_400
 BACKGROUND = "#12121a"
 MIN_CONTRAST = 4.5
-COLOUR_MATCH_JACCARD = 0.80
+MIN_OKLAB_DISTANCE = 0.035
+COLOUR_MATCH_JACCARD = 0.70
 STUDY_SOURCES = {
     "study_u30_mcs200_ms15_seed73": ROOT / "analysis" / "robustness-study" / "work" / "remote-linux" / "seed-runs" / "d30" / "seed73" / "labels.npy",
     "study_u20_mcs300_ms50_seed42": ROOT / "analysis" / "robustness-study" / "work" / "runs" / "hdbscan-grid-pca100" / "d20" / "mcs300-ms50-eom" / "labels.npy",
@@ -32,6 +33,23 @@ def relative_luminance(colour: str) -> float:
 def contrast_ratio(left: str, right: str) -> float:
     lighter, darker = sorted((relative_luminance(left), relative_luminance(right)), reverse=True)
     return (lighter + 0.05) / (darker + 0.05)
+
+
+def hex_to_oklab(colour: str) -> np.ndarray:
+    rgb = np.array([int(colour[index:index + 2], 16) / 255 for index in (1, 3, 5)])
+    linear = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+    red, green, blue = linear
+    l_value = 0.4122214708 * red + 0.5363325363 * green + 0.0514459929 * blue
+    m_value = 0.2119034982 * red + 0.6806995451 * green + 0.1073969566 * blue
+    s_value = 0.0883024619 * red + 0.2817188376 * green + 0.6299787005 * blue
+    l_root, m_root, s_root = np.cbrt([l_value, m_value, s_value])
+    return np.array(
+        [
+            0.2104542553 * l_root + 0.7936177850 * m_root - 0.0040720468 * s_root,
+            1.9779984951 * l_root - 2.4285922050 * m_root + 0.4505937099 * s_root,
+            0.0259040371 * l_root + 0.7827717660 * m_root - 0.8086757660 * s_root,
+        ]
+    )
 
 
 def validate_pairwise_colour_matches(catalog: dict, labels: dict[str, np.ndarray]) -> int:
@@ -101,6 +119,11 @@ def main() -> None:
             raise ValueError(f"{lens['id']} contains an invalid colour")
         if any(contrast_ratio(colour, BACKGROUND) < MIN_CONTRAST for colour in colours):
             raise ValueError(f"{lens['id']} contains a low-contrast colour")
+        labs = np.vstack([hex_to_oklab(colour) for colour in colours])
+        distances = np.linalg.norm(labs[:, None, :] - labs[None, :, :], axis=2)
+        distances += np.eye(len(colours)) * 99
+        if float(distances.min()) < MIN_OKLAB_DISTANCE:
+            raise ValueError(f"{lens['id']} contains perceptually overlapping colours")
 
     for lens_id, source in STUDY_SOURCES.items():
         if lens_id not in labels_by_lens:

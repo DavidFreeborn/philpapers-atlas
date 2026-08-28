@@ -14,7 +14,7 @@ from scipy import sparse
 ROOT = Path(__file__).resolve().parents[1]
 PAPER_COUNT = 69_400
 EMBEDDING_DIMENSIONS = 768
-NEIGHBOURS_PER_PAPER = 30
+NEIGHBOURS_PER_PAPER = 50
 NEIGHBOUR_CHUNK_SIZE = 200
 REPRESENTATIVES_PER_CLUSTER = 10
 
@@ -32,7 +32,7 @@ def uint24_le(values: np.ndarray) -> bytes:
 
 
 def neighbour_rows(indices: np.ndarray) -> np.ndarray:
-    """Remove each query from its approximate-neighbour row and retain the first 30."""
+    """Remove each query from its approximate-neighbour row and retain the first 50."""
     if indices.shape[0] != PAPER_COUNT or indices.shape[1] < NEIGHBOURS_PER_PAPER + 1:
         raise ValueError(f"Unexpected neighbour graph shape: {indices.shape}")
     result = np.empty((PAPER_COUNT, NEIGHBOURS_PER_PAPER), dtype=np.int32)
@@ -41,7 +41,10 @@ def neighbour_rows(indices: np.ndarray) -> np.ndarray:
         row = row[row != paper_index]
         unique = dict.fromkeys(int(value) for value in row)
         if len(unique) < NEIGHBOURS_PER_PAPER:
-            raise ValueError(f"Paper {paper_index} has fewer than 30 unique non-self neighbours")
+            raise ValueError(
+                f"Paper {paper_index} has fewer than {NEIGHBOURS_PER_PAPER} "
+                "unique non-self neighbours"
+            )
         result[paper_index] = np.fromiter(
             list(unique)[:NEIGHBOURS_PER_PAPER],
             dtype=np.int32,

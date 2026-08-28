@@ -560,9 +560,10 @@ export default function Atlas() {
   const [showLegend, setShowLegend] = useState(false);
   const [showInspector, setShowInspector] = useState(false);
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
+  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
   const [neighbourMetadata, setNeighbourMetadata] = useState<NeighbourMetadata | null>(null);
   const [representativeData, setRepresentativeData] = useState<RepresentativeData | null>(null);
-  const [nearestCount, setNearestCount] = useState(10);
+  const [nearestCountInput, setNearestCountInput] = useState('10');
   const [nearestActive, setNearestActive] = useState(false);
   const [nearestState, setNearestState] = useState<{
     index: number;
@@ -658,6 +659,9 @@ export default function Atlas() {
     [activeLens],
   );
   const activeClusterSet = useMemo(() => new Set(activeClusters), [activeClusters]);
+  const nearestLimit = neighbourMetadata?.neighborsPerPaper ?? 50;
+  const parsedNearestCount = Number.parseInt(nearestCountInput, 10);
+  const nearestCount = clamp(Number.isFinite(parsedNearestCount) ? parsedNearestCount : 1, 1, nearestLimit);
   const nearestPaperIndices = useMemo(
     () => nearestActive && selectedIndex !== null && nearestState?.index === selectedIndex
       ? nearestState.neighbours.slice(0, nearestCount)
@@ -1555,6 +1559,7 @@ export default function Atlas() {
         setSelectedIndex(picked);
         setHoveredIndex(picked);
         setShowInspector(true);
+        setRightSidebarCollapsed(false);
       }
     }
     const remaining = [...pointersRef.current.values()];
@@ -1675,6 +1680,7 @@ export default function Atlas() {
       setNearestActive(false);
       setNearestState(null);
       setShowInspector(true);
+      setRightSidebarCollapsed(false);
       setShowLegend(false);
       setQuery('');
     },
@@ -1823,6 +1829,7 @@ export default function Atlas() {
     setSelectedIndex(index);
     setHoveredIndex(index);
     setShowInspector(true);
+    setRightSidebarCollapsed(false);
   };
 
   if (loadError) {
@@ -1887,7 +1894,11 @@ export default function Atlas() {
         </div>
       </header>
 
-      <section className={`atlas-workspace ${leftSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <section className={[
+        'atlas-workspace',
+        leftSidebarCollapsed ? 'sidebar-collapsed' : '',
+        rightSidebarCollapsed ? 'right-sidebar-collapsed' : '',
+      ].filter(Boolean).join(' ')}>
         <aside className={`cluster-panel ${showLegend ? 'panel-open' : ''}`}>
           <div className="cluster-panel-top">
             <p className="corpus-stat"><strong>69,400</strong> English-language papers</p>
@@ -2018,6 +2029,14 @@ export default function Atlas() {
             </div>
           </div>
 
+          {rightSidebarCollapsed && (
+            <button
+              className="right-sidebar-expand-button"
+              onClick={() => setRightSidebarCollapsed(false)}
+              aria-label="Restore details panel"
+            >‹</button>
+          )}
+
           {projectionError && (
             <div className="projection-message projection-error" role="alert">
               {projectionError}
@@ -2081,6 +2100,7 @@ export default function Atlas() {
                   setSelectedIndex(picked);
                   setHoveredIndex(picked);
                   setShowInspector(true);
+                  setRightSidebarCollapsed(false);
                 }
               }
               if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -2159,6 +2179,11 @@ export default function Atlas() {
 
         <aside className={`paper-panel ${showInspector ? 'panel-open' : ''}`}>
           <button
+            className="right-sidebar-collapse-button"
+            onClick={() => setRightSidebarCollapsed(true)}
+            aria-label="Minimise details panel"
+          >›</button>
+          <button
             className={`panel-close inspector-close ${selectedIndex !== null ? 'paper-selected-close' : ''}`}
             onClick={() => selectedIndex !== null ? closeSelectedPaper() : setShowInspector(false)}
             aria-label={selectedIndex !== null ? 'Back to cluster overview' : 'Close details panel'}
@@ -2180,23 +2205,37 @@ export default function Atlas() {
                   <div className="nearest-heading">
                     <div>
                       <p className="eyebrow">Nearest papers</p>
-                      <span>SPECTER cosine similarity</span>
+                      <span id="nearest-limit">SPECTER cosine · max {nearestLimit}</span>
                     </div>
                     <div className="nearest-controls">
                       <label>
                         <span className="sr-only">Number of nearest papers</span>
-                        <select
-                          value={nearestCount}
-                          onChange={(event) => setNearestCount(Number(event.target.value))}
+                        <input
+                          type="number"
+                          min={1}
+                          max={nearestLimit}
+                          step={1}
+                          inputMode="numeric"
+                          value={nearestCountInput}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            if (value === '') {
+                              setNearestCountInput('');
+                              return;
+                            }
+                            const parsed = Number.parseInt(value, 10);
+                            if (Number.isFinite(parsed)) {
+                              setNearestCountInput(String(clamp(parsed, 1, nearestLimit)));
+                            }
+                          }}
+                          onBlur={() => setNearestCountInput(String(nearestCount))}
                           aria-label="Number of nearest papers"
-                        >
-                          {[5, 10, 20, 30].map((count) => (
-                            <option key={count} value={count}>{count}</option>
-                          ))}
-                        </select>
+                          aria-describedby="nearest-limit"
+                        />
                       </label>
                       <button
                         onClick={() => {
+                          setNearestCountInput(String(nearestCount));
                           setNearestActive((current) => !current);
                           setNearestState(null);
                         }}

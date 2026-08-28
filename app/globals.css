@@ -97,6 +97,9 @@ button { color: inherit; }
 }
 .atlas-workspace.sidebar-collapsed { grid-template-columns: 0 minmax(360px, 1fr) var(--right-panel); }
 .atlas-workspace.sidebar-collapsed .cluster-panel { padding-left: 0; padding-right: 0; border-right: 0; visibility: hidden; pointer-events: none; }
+.atlas-workspace.right-sidebar-collapsed { grid-template-columns: var(--left-panel) minmax(360px, 1fr) 0; }
+.atlas-workspace.sidebar-collapsed.right-sidebar-collapsed { grid-template-columns: 0 minmax(360px, 1fr) 0; }
+.atlas-workspace.right-sidebar-collapsed .paper-panel { padding-left: 0; padding-right: 0; border-left: 0; visibility: hidden; pointer-events: none; overflow: hidden; }
 .cluster-panel, .paper-panel { min-width: 0; min-height: 0; background: var(--panel); position: relative; z-index: 20; }
 .cluster-panel { overflow: hidden; border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 17px 14px 12px; }
 .paper-panel { border-left: 1px solid var(--line); padding: clamp(22px, 2vw, 30px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #3a3c4b transparent; }
@@ -105,9 +108,9 @@ button { color: inherit; }
 .cluster-panel-top { min-height: 34px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .corpus-stat { margin: 0 4px 15px; color: var(--muted); font-size: 14px; }
 .corpus-stat strong { color: #e5e6ec; font: 17px var(--font-geist-mono), monospace; font-weight: 520; }
-.sidebar-collapse-button, .sidebar-expand-button { width: 32px; height: 32px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 5px; background: transparent; color: var(--muted); font-size: 23px; line-height: 1; cursor: pointer; }
+.sidebar-collapse-button, .sidebar-expand-button, .right-sidebar-collapse-button, .right-sidebar-expand-button { width: 32px; height: 32px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 5px; background: transparent; color: var(--muted); font-size: 23px; line-height: 1; cursor: pointer; }
 .sidebar-collapse-button { margin: -7px -2px 0 0; }
-.sidebar-collapse-button:hover, .sidebar-expand-button:hover { background: var(--control); color: var(--ink); border-color: #505367; }
+.sidebar-collapse-button:hover, .sidebar-expand-button:hover, .right-sidebar-collapse-button:hover, .right-sidebar-expand-button:hover { background: var(--control); color: var(--ink); border-color: #505367; }
 .lens-controls { flex: 0 0 auto; padding: 0 4px 16px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
 .lens-control-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .lens-control-heading label { color: #d8d9e0; font-size: 14px; font-weight: 590; }
@@ -157,6 +160,8 @@ button { color: inherit; }
 .atlas-canvas:focus-visible { box-shadow: inset 0 0 0 2px rgba(154, 175, 255, .72); }
 .view-control-wrap { position: absolute; z-index: 9; top: 14px; left: 16px; display: flex; align-items: center; gap: 7px; }
 .sidebar-expand-button { background: rgba(25, 26, 36, .94); box-shadow: 0 5px 18px rgba(0, 0, 0, .2); backdrop-filter: blur(8px); }
+.right-sidebar-collapse-button { position: absolute; z-index: 3; top: 11px; right: 13px; }
+.right-sidebar-expand-button { position: absolute; z-index: 9; top: 14px; right: 16px; background: rgba(25, 26, 36, .94); box-shadow: 0 5px 18px rgba(0, 0, 0, .2); backdrop-filter: blur(8px); }
 .view-control { display: flex; overflow: hidden; border: 1px solid #3a3d4d; border-radius: 5px; background: rgba(25, 26, 36, .94); box-shadow: 0 5px 18px rgba(0, 0, 0, .2); backdrop-filter: blur(8px); }
 .view-control button { min-width: 44px; height: 36px; padding: 0 11px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 12.5px; font-weight: 620; cursor: pointer; }
 .view-control button:last-child { border-right: 0; }
@@ -183,6 +188,7 @@ button { color: inherit; }
 
 .inspector-close { position: absolute; right: 13px; top: 11px; z-index: 2; }
 .inspector-close.paper-selected-close { display: block; }
+.paper-panel .inspector-close.paper-selected-close { right: 52px; }
 .paper-detail h3, .cluster-detail h3, .atlas-overview h3 { margin: 14px 0 9px; font-size: clamp(24px, 1.55vw, 30px); line-height: 1.2; font-weight: 550; letter-spacing: -.027em; }
 .detail-cluster-label { display: flex; align-items: center; gap: 8px; padding-right: 28px; color: var(--muted); font-size: 13.5px; }
 .detail-cluster-label span { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; }
@@ -196,8 +202,10 @@ button { color: inherit; }
 .nearest-heading p { margin: 0; }
 .nearest-heading > div:first-child > span { display: block; margin-top: 4px; color: var(--faint); font-size: 11.5px; }
 .nearest-controls { display: flex; flex: 0 0 auto; align-items: stretch; border: 1px solid #3a3d4d; border-radius: 5px; overflow: hidden; }
-.nearest-controls select, .nearest-controls button { height: 34px; border: 0; background: #20222e; color: #d6d7df; font-size: 12.5px; }
-.nearest-controls select { min-width: 49px; padding: 0 5px; border-right: 1px solid var(--line); cursor: pointer; }
+.nearest-controls input, .nearest-controls button { height: 34px; border: 0; background: #20222e; color: #d6d7df; font-size: 12.5px; }
+.nearest-controls input { width: 58px; padding: 0 8px; border-right: 1px solid var(--line); outline: 0; appearance: textfield; -moz-appearance: textfield; }
+.nearest-controls input::-webkit-inner-spin-button, .nearest-controls input::-webkit-outer-spin-button { margin: 0; appearance: none; }
+.nearest-controls input:focus { box-shadow: inset 0 0 0 1px rgba(154, 175, 255, .45); }
 .nearest-controls button { min-width: 70px; padding: 0 10px; cursor: pointer; }
 .nearest-controls button:hover:not(:disabled) { background: #303342; color: #fff; }
 .nearest-controls button[aria-pressed="true"] { background: #3a4054; color: #fff; }
@@ -256,9 +264,14 @@ button { color: inherit; }
   .atlas-header { grid-template-columns: minmax(210px, 270px) minmax(280px, 620px) 1fr; }
   .atlas-workspace { grid-template-columns: var(--left-panel) minmax(360px, 1fr); }
   .atlas-workspace.sidebar-collapsed { grid-template-columns: 0 minmax(360px, 1fr); }
+  .atlas-workspace.right-sidebar-collapsed { grid-template-columns: var(--left-panel) minmax(360px, 1fr); }
+  .atlas-workspace.sidebar-collapsed.right-sidebar-collapsed { grid-template-columns: 0 minmax(360px, 1fr); }
   .paper-panel { position: absolute; top: 0; right: 0; bottom: 0; z-index: 45; width: min(440px, 95vw); transform: translateX(102%); box-shadow: 0 15px 45px rgba(0,0,0,.42); transition: transform 170ms ease; }
+  .atlas-workspace.right-sidebar-collapsed .paper-panel { padding: clamp(22px, 2vw, 30px); border-left: 1px solid var(--line); visibility: visible; pointer-events: auto; overflow-y: auto; }
   .paper-panel.panel-open { transform: translateX(0); }
   .paper-panel .panel-close { display: block; }
+  .paper-panel .inspector-close.paper-selected-close { right: 13px; }
+  .right-sidebar-collapse-button, .right-sidebar-expand-button { display: none; }
   .mobile-inspector-button { display: block; position: absolute; z-index: 6; right: 16px; bottom: 16px; min-height: 40px; padding: 0 13px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); color: var(--muted); font-size: 13px; box-shadow: 0 5px 18px rgba(0,0,0,.2); }
 }
 
@@ -302,8 +315,8 @@ button { color: inherit; }
 }
 
 @media (pointer: coarse) {
-  .cluster-row, .map-controls button, .view-control button, .sidebar-collapse-button, .sidebar-expand-button, .mobile-inspector-button, .mobile-panel-button, .secondary-link, .nearest-controls select, .nearest-controls button { min-height: 44px; }
-  .sidebar-collapse-button, .sidebar-expand-button { min-width: 44px; }
+  .cluster-row, .map-controls button, .view-control button, .sidebar-collapse-button, .sidebar-expand-button, .right-sidebar-collapse-button, .right-sidebar-expand-button, .mobile-inspector-button, .mobile-panel-button, .secondary-link, .nearest-controls input, .nearest-controls button { min-height: 44px; }
+  .sidebar-collapse-button, .sidebar-expand-button, .right-sidebar-collapse-button, .right-sidebar-expand-button { min-width: 44px; }
   .lens-controls select { min-height: 46px; }
 }
 

@@ -40,7 +40,7 @@ The selected configuration was then evaluated on a disjoint 5,000-paper holdout 
 | Selected 3D | **0.983** | **0.628** | **0.689** | **0.362** | **0.753** |
 | Existing 2D | 0.769 | 0.123 | 0.164 | 0.109 | 0.398 |
 
-This comparison concerns fidelity to the reconstructed 30D source, not clustering quality. The established 2D coordinates were generated previously, so the baseline should not be read as a controlled re-fit of 2D and 3D with identical display parameters.
+This comparison concerns fidelity to the reconstructed 30D source, not clustering quality. The fixed 2D coordinates come from a separate fit, so the baseline should not be read as a controlled comparison of 2D and 3D projections with identical display parameters.
 
 Orthographic checks of all three axis pairs found no collapsed axis or unusable occlusion. The diagnostic image is `analysis/projection-3d-diagnostics.png`.
 

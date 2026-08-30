@@ -1,6 +1,6 @@
 {
-  "embedding": "C:\\Users\\dafid\\OneDrive\\Documents\\ChatGPT\\PhilPapers_Map\\analysis\\robustness-study\\work\\runs\\umap-pca100\\d2\\seed11\\embedding.npy",
-  "labels": "C:\\Users\\dafid\\OneDrive\\Documents\\ChatGPT\\PhilPapers_Map\\analysis\\robustness-study\\work\\runs\\umap-pca100\\d2\\seed11\\labels-sklearn-mcs150-ms50.npy",
+  "embedding": "analysis/robustness-study/work/runs/umap-pca100/d2/seed11/embedding.npy",
+  "labels": "analysis/robustness-study/work/runs/umap-pca100/d2/seed11/labels-sklearn-mcs150-ms50.npy",
   "mean_ari_to_other_runs": 0.3431554820677637,
   "medoid": "windows-seed11",
   "platform": "windows",

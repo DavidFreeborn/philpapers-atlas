@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build compact, browser-ready PhilPapers Atlas data files.
 
-The source artefacts are the saved preferred clustering outputs from Explorer.
+The source artefacts are saved clustering outputs and aligned paper metadata.
 No embeddings, PCA, UMAP, or HDBSCAN models are refit by this script.
 """
 
@@ -236,7 +236,7 @@ def main() -> None:
     write_json(
         output / "map.json",
         {
-            "version": "candidate-42",
+            "version": "1.0.0",
             "count": len(points),
             "bounds": bounds,
             "points": points,
@@ -253,7 +253,7 @@ def main() -> None:
     write_json(
         output / "manifest.json",
         {
-            "version": "candidate-42",
+            "version": "1.0.0",
             "papers": len(points),
             "clusteredPapers": len(points) - actual_counts.get(-1, 0),
             "noisePapers": actual_counts.get(-1, 0),

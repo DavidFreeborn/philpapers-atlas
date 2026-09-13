@@ -24,6 +24,7 @@ import {
   zoomCamera,
 } from './atlas3d';
 import type { Camera3D, Vec3 } from './atlas3d';
+import CorrelationWorkspace from './CorrelationWorkspace';
 import {
   preparePaperSearch,
   searchPreparedPapers,
@@ -73,6 +74,8 @@ type LensMethod = {
   priorVariant?: string;
   learningMethod?: 'online' | 'batch';
   iterations?: number;
+  metadataField?: string;
+  sourceDescription?: string;
 };
 
 type LensMetrics = {
@@ -101,13 +104,14 @@ type LensMetrics = {
   textNpmi?: number;
   resamplingRuns?: number;
   collapsedRuns?: number;
+  coveragePct?: number;
 };
 
 type Lens = {
   id: string;
   name: string;
   optionLabel: string;
-  algorithm: 'hdbscan' | 'kmeans' | 'lda';
+  algorithm: 'hdbscan' | 'kmeans' | 'lda' | 'metadata';
   preferred: boolean;
   labelsFile: string;
   clusterCount: number;
@@ -134,6 +138,14 @@ type LensCatalog = {
 
 type View = { zoom: number; panX: number; panY: number };
 type DisplayMode = '2d' | '3d';
+type Workspace = 'map' | 'correlations';
+
+type PaperSelection = {
+  indices: ReadonlySet<number>;
+  label: string;
+  sourceLensId: string;
+  sourceClusterIds: number[];
+};
 
 type Projection3DMetadata = {
   version: string;
@@ -392,16 +404,39 @@ function formatDecimal(value: number | undefined, digits = 3): string {
   return value === undefined ? '—' : value.toFixed(digits);
 }
 
+function lensPlural(lens: Lens | null): string {
+  if (lens?.algorithm === 'lda') return 'Topics';
+  if (lens?.algorithm === 'metadata') return 'Categories';
+  return 'Clusters';
+}
+
+function lensSingular(lens: Lens | null): string {
+  if (lens?.algorithm === 'lda') return 'topic';
+  if (lens?.algorithm === 'metadata') return 'category';
+  return 'cluster';
+}
+
+function unassignedLabel(lens: Lens | null): string {
+  return lens?.algorithm === 'metadata' ? 'metadata unavailable' : 'unassigned';
+}
+
 function MethodContent({ lens }: { lens: Lens }) {
   const method = lens.method;
   const usesDisplaySpace = method.clusteringSpace === 'display2d';
   const isLda = lens.algorithm === 'lda';
+  const isMetadata = lens.algorithm === 'metadata';
   const hasRobustnessStudyMetrics = lens.metrics.resamplingClusterJaccard !== undefined;
   return (
     <>
       <p className="method-heading">Parameters</p>
       <dl className="method-table">
-        {isLda ? (
+        {isMetadata ? (
+          <>
+            <div><dt>Field</dt><dd>{method.metadataField}</dd></div>
+            <div><dt>Source</dt><dd>{method.sourceDescription}</dd></div>
+            <div><dt>Assignment</dt><dd>normalised categorical metadata</dd></div>
+          </>
+        ) : isLda ? (
           <>
             <div><dt>Input</dt><dd>titles (×2) and abstracts</dd></div>
             <div><dt>Vocabulary</dt><dd>{formatNumber(method.vocabularySize ?? 0)} unigrams and bigrams · min. {method.minDocumentFrequency} papers</dd></div>
@@ -434,7 +469,9 @@ function MethodContent({ lens }: { lens: Lens }) {
       </dl>
       <p className="method-heading metrics-heading">Metrics</p>
       <dl className="method-metrics">
-        {isLda ? (
+        {isMetadata ? (
+          <div title="Proportion of papers with a usable value for this field."><dt>Metadata coverage</dt><dd>{formatDecimal(lens.metrics.coveragePct, 1)}%</dd></div>
+        ) : isLda ? (
           <>
             <div title="NPMI coherence of the most probable words in held-out papers; higher is better."><dt>Held-out NPMI coherence</dt><dd>{formatDecimal(lens.metrics.npmiCoherence)}</dd></div>
             <div title="Per-word perplexity on the sealed test set; lower is better and comparisons are meaningful within these LDA models."><dt>Held-out perplexity</dt><dd>{lens.metrics.heldOutPerplexity === undefined ? '—' : formatNumber(Math.round(lens.metrics.heldOutPerplexity))}</dd></div>
@@ -530,6 +567,7 @@ export default function Atlas() {
   const neighbourCacheRef = useRef<Map<number, ArrayBuffer>>(new Map());
   const neighbourPromiseRef = useRef<Map<number, Promise<ArrayBuffer>>>(new Map());
   const lensLabelCacheRef = useRef<Map<string, Int16Array>>(new Map());
+  const lensPromiseRef = useRef<Map<string, Promise<Int16Array>>>(new Map());
   const lensRequestRef = useRef(0);
   const projectionRequestRef = useRef<Promise<Projection3D> | null>(null);
 
@@ -544,11 +582,13 @@ export default function Atlas() {
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<View>({ zoom: 1, panX: 0, panY: 0 });
   const [displayMode, setDisplayMode] = useState<DisplayMode>('2d');
+  const [workspace, setWorkspace] = useState<Workspace>('map');
   const [projection3d, setProjection3d] = useState<Projection3D | null>(null);
   const [projectionLoading, setProjectionLoading] = useState(false);
   const [projectionError, setProjectionError] = useState('');
   const [camera3d, setCamera3d] = useState<Camera3D>(() => resetCamera3D());
   const [activeClusters, setActiveClusters] = useState<number[]>([]);
+  const [paperSelection, setPaperSelection] = useState<PaperSelection | null>(null);
   const [showNoise, setShowNoise] = useState(true);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -677,7 +717,30 @@ export default function Atlas() {
     && selectedIndex !== null
     && nearestState?.index !== selectedIndex;
   const nearestError = nearestState?.index === selectedIndex ? nearestState.error ?? '' : '';
-  const hasPointHighlight = activeClusters.length > 0 || (nearestActive && selectedIndex !== null);
+  const hasPointHighlight = paperSelection !== null || (nearestActive && selectedIndex !== null);
+
+  const loadLensLabels = useCallback(async (lensId: string): Promise<Int16Array> => {
+    const cached = lensLabelCacheRef.current.get(lensId);
+    if (cached) return cached;
+    const pending = lensPromiseRef.current.get(lensId);
+    if (pending) return pending;
+    const lens = lensCatalog?.lenses.find((candidate) => candidate.id === lensId);
+    if (!lens || !lensCatalog) throw new Error('The selected lens is unavailable.');
+    const request = fetch(lens.labelsFile)
+      .then(async (response) => {
+        if (!response.ok) throw new Error('The selected lens could not be loaded.');
+        const buffer = await response.arrayBuffer();
+        if (buffer.byteLength !== lensCatalog.paperCount * Int16Array.BYTES_PER_ELEMENT) {
+          throw new Error('The selected lens does not match the map.');
+        }
+        const labels = new Int16Array(buffer);
+        lensLabelCacheRef.current.set(lensId, labels);
+        return labels;
+      })
+      .finally(() => lensPromiseRef.current.delete(lensId));
+    lensPromiseRef.current.set(lensId, request);
+    return request;
+  }, [lensCatalog]);
 
   const changeLens = useCallback(async (lensId: string) => {
     if (!lensCatalog || lensId === activeLensId || lensLoadingId) return;
@@ -688,21 +751,13 @@ export default function Atlas() {
     setLensError('');
     setLensLoadingId(lensId);
     try {
-      let labels = lensLabelCacheRef.current.get(lensId);
-      if (!labels) {
-        const response = await fetch(lens.labelsFile);
-        if (!response.ok) throw new Error('The selected clustering lens could not be loaded.');
-        const buffer = await response.arrayBuffer();
-        if (buffer.byteLength !== lensCatalog.paperCount * Int16Array.BYTES_PER_ELEMENT) {
-          throw new Error('The selected clustering lens does not match the map.');
-        }
-        labels = new Int16Array(buffer);
-        lensLabelCacheRef.current.set(lensId, labels);
-      }
+      const labels = await loadLensLabels(lensId);
       if (lensRequestRef.current !== requestId) return;
       setActiveLensId(lensId);
       setLabelState({ lensId, labels });
-      setActiveClusters([]);
+      setActiveClusters(
+        paperSelection?.sourceLensId === lensId ? paperSelection.sourceClusterIds : [],
+      );
       setNearestActive(false);
       setNearestState(null);
       setHoveredIndex(null);
@@ -714,7 +769,7 @@ export default function Atlas() {
     } finally {
       if (lensRequestRef.current === requestId) setLensLoadingId(null);
     }
-  }, [activeLensId, lensCatalog, lensLoadingId]);
+  }, [activeLensId, lensCatalog, lensLoadingId, loadLensLabels, paperSelection]);
 
   const loadProjection3d = useCallback(async (): Promise<Projection3D> => {
     if (projection3d) return projection3d;
@@ -1183,9 +1238,9 @@ export default function Atlas() {
       nearestPaperIndices.forEach((index) => {
         if (index >= 0 && index < highlights.length) highlights[index] = 1;
       });
-    } else if (activeClusterSet.size > 0) {
-      currentLabels.forEach((clusterId, index) => {
-        if (activeClusterSet.has(clusterId)) highlights[index] = 1;
+    } else if (paperSelection) {
+      paperSelection.indices.forEach((index) => {
+        if (index >= 0 && index < highlights.length) highlights[index] = 1;
       });
     }
     const { gl } = renderer;
@@ -1194,7 +1249,7 @@ export default function Atlas() {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     const frame = requestAnimationFrame(drawMap);
     return () => cancelAnimationFrame(frame);
-  }, [activeClusterSet, currentLabels, drawMap, nearestActive, nearestPaperIndices, selectedIndex]);
+  }, [currentLabels, drawMap, nearestActive, nearestPaperIndices, paperSelection, selectedIndex]);
 
   useEffect(() => {
     if (!mapData) return;
@@ -1370,7 +1425,7 @@ export default function Atlas() {
             const clusterId = currentLabels?.[index] ?? point[2];
             const highlighted = nearestActive
               ? nearestPaperSet.has(index)
-              : activeClusterSet.has(clusterId);
+              : paperSelection?.indices.has(index) ?? false;
             if (clusterId < 0 && !showNoise && !highlighted) continue;
             if (hasPointHighlight && !highlighted) continue;
             const position = toScreen(point[0], point[1]);
@@ -1385,13 +1440,13 @@ export default function Atlas() {
       return nearest;
     },
     [
-      activeClusterSet,
       currentLabels,
       getMetrics,
       hasPointHighlight,
       mapData,
       nearestActive,
       nearestPaperSet,
+      paperSelection,
       showNoise,
       toScreen,
       view,
@@ -1626,6 +1681,7 @@ export default function Atlas() {
       } else if (key === 'r') {
         event.preventDefault();
         setActiveClusters([]);
+        setPaperSelection(null);
         setSelectedIndex(null);
         setNearestActive(false);
         setNearestState(null);
@@ -1640,6 +1696,7 @@ export default function Atlas() {
     } else if (key === 'r') {
       event.preventDefault();
       setActiveClusters([]);
+      setPaperSelection(null);
       setSelectedIndex(null);
       setNearestActive(false);
       setNearestState(null);
@@ -1677,6 +1734,17 @@ export default function Atlas() {
       }
       setSelectedIndex(index);
       setActiveClusters(clusterId >= 0 ? [clusterId] : []);
+      if (clusterId >= 0 && activeLens) {
+        const indices = new Set(pointGroups.get(clusterId) ?? []);
+        setPaperSelection({
+          indices,
+          label: clusterById.get(clusterId)?.label ?? `${lensSingular(activeLens)} ${clusterId}`,
+          sourceLensId: activeLens.id,
+          sourceClusterIds: [clusterId],
+        });
+      } else {
+        setPaperSelection(null);
+      }
       setNearestActive(false);
       setNearestState(null);
       setShowInspector(true);
@@ -1684,7 +1752,7 @@ export default function Atlas() {
       setShowLegend(false);
       setQuery('');
     },
-    [currentLabels, displayMode, getMetrics, mapData, projection3d, view.zoom],
+    [activeLens, clusterById, currentLabels, displayMode, getMetrics, mapData, pointGroups, projection3d, view.zoom],
   );
 
   const handleSearchResultClick = useCallback(
@@ -1773,6 +1841,7 @@ export default function Atlas() {
 
   const clearFocus = useCallback(() => {
     setActiveClusters([]);
+    setPaperSelection(null);
     setSelectedIndex(null);
     setNearestActive(false);
     setNearestState(null);
@@ -1786,12 +1855,27 @@ export default function Atlas() {
       ? activeClusters.filter((candidate) => candidate !== clusterId)
       : [...activeClusters, clusterId];
     setActiveClusters(nextClusters);
+    if (activeLens && nextClusters.length) {
+      const indices = new Set<number>();
+      nextClusters.forEach((id) => pointGroups.get(id)?.forEach((index) => indices.add(index)));
+      const names = nextClusters
+        .map((id) => clusterById.get(id)?.label)
+        .filter((label): label is string => Boolean(label));
+      setPaperSelection({
+        indices,
+        label: names.length === 1 ? names[0] : `${names.length} ${lensPlural(activeLens).toLowerCase()}`,
+        sourceLensId: activeLens.id,
+        sourceClusterIds: nextClusters,
+      });
+    } else {
+      setPaperSelection(null);
+    }
     setSelectedIndex(null);
     setNearestActive(false);
     setNearestState(null);
     if (nextClusters.length) setShowInspector(true);
     frameClusters(nextClusters);
-  }, [activeClusterSet, activeClusters, frameClusters]);
+  }, [activeClusterSet, activeClusters, activeLens, clusterById, frameClusters, pointGroups]);
 
   const selectedPoint = selectedIndex === null ? null : mapData?.points[selectedIndex] ?? null;
   const selectedClusterId = selectedIndex === null ? null : currentLabels?.[selectedIndex] ?? selectedPoint?.[2] ?? -1;
@@ -1800,10 +1884,7 @@ export default function Atlas() {
     : activeClusters.length === 1
       ? clusterById.get(activeClusters[0])
       : null;
-  const activeClusterPaperCount = activeClusters.reduce(
-    (total, clusterId) => total + (clusterById.get(clusterId)?.count ?? 0),
-    0,
-  );
+  const activeClusterPaperCount = paperSelection?.indices.size ?? 0;
   const characteristicPapers = activeClusters.length === 1
     ? representativeData?.lenses[activeLensId]?.[activeClusters[0]] ?? null
     : null;
@@ -1818,6 +1899,23 @@ export default function Atlas() {
   const hoveredCluster = hoveredPoint ? clusterById.get(hoveredClusterId ?? -1) : null;
   const selectedMarker = selectedIndex === null ? null : toScreenIndex(selectedIndex);
   const hoveredMarker = hoveredIndex === null ? null : toScreenIndex(hoveredIndex);
+  const selectionDistribution = useMemo(() => {
+    if (!paperSelection || !currentLabels) return [];
+    const counts = new Map<number, number>();
+    paperSelection.indices.forEach((index) => {
+      const label = currentLabels[index];
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    });
+    return [...counts]
+      .map(([id, count]) => ({
+        id,
+        count,
+        label: id < 0
+          ? (activeLens?.algorithm === 'metadata' ? 'Metadata unavailable' : 'Unclustered')
+          : clusterById.get(id)?.label ?? `${lensSingular(activeLens)} ${id}`,
+      }))
+      .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+  }, [activeLens, clusterById, currentLabels, paperSelection]);
 
   const closeSelectedPaper = () => {
     setSelectedIndex(null);
@@ -1843,16 +1941,16 @@ export default function Atlas() {
   }
 
   return (
-    <main className="atlas-app">
+    <main className={`atlas-app workspace-${workspace}`}>
       <header className="atlas-header">
-        <button className="atlas-brand" onClick={clearFocus} aria-label="Reset the PhilPapers Atlas">
+        <button className="atlas-brand" onClick={() => { setWorkspace('map'); clearFocus(); }} aria-label="Open and reset the PhilPapers Atlas map">
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
           <span>
             <strong>PhilPapers Atlas</strong>
           </span>
         </button>
 
-        <div className="atlas-search-wrap">
+        <div className={`atlas-search-wrap ${workspace !== 'map' ? 'atlas-search-hidden' : ''}`}>
           <label className="atlas-search">
             <span aria-hidden="true">⌕</span>
             <input
@@ -1890,12 +1988,31 @@ export default function Atlas() {
         </div>
 
         <div className="header-actions">
-          <button className="mobile-panel-button" onClick={() => setShowLegend(true)}>{activeLens?.algorithm === 'lda' ? 'Topics' : 'Clusters'}</button>
+          <nav className="atlas-tabs" aria-label="Atlas workspaces">
+            <button
+              className={workspace === 'map' ? 'active' : ''}
+              onClick={() => setWorkspace('map')}
+              aria-current={workspace === 'map' ? 'page' : undefined}
+            >Map</button>
+            <button
+              className={workspace === 'correlations' ? 'active' : ''}
+              onClick={() => setWorkspace('correlations')}
+              aria-current={workspace === 'correlations' ? 'page' : undefined}
+              aria-label="Correlation matrices"
+            >
+              <span className="wide-tab-label">Correlation matrices</span>
+              <span className="short-tab-label">Matrices</span>
+            </button>
+          </nav>
+          {workspace === 'map' && (
+            <button className="mobile-panel-button" onClick={() => setShowLegend(true)}>{lensPlural(activeLens)}</button>
+          )}
         </div>
       </header>
 
       <section className={[
         'atlas-workspace',
+        workspace !== 'map' ? 'workspace-hidden' : '',
         leftSidebarCollapsed ? 'sidebar-collapsed' : '',
         rightSidebarCollapsed ? 'right-sidebar-collapsed' : '',
       ].filter(Boolean).join(' ')}>
@@ -1913,7 +2030,7 @@ export default function Atlas() {
           </div>
           <div className="lens-controls">
             <div className="lens-control-heading">
-              <label htmlFor="lens-select">Clustering lens</label>
+              <label htmlFor="lens-select">Lens</label>
             </div>
             <select
               id="lens-select"
@@ -1938,17 +2055,22 @@ export default function Atlas() {
                   <option key={lens.id} value={lens.id}>{lens.optionLabel}</option>
                 ))}
               </optgroup>
+              <optgroup label="Metadata lenses">
+                {lensCatalog?.lenses.filter((lens) => lens.algorithm === 'metadata').map((lens) => (
+                  <option key={lens.id} value={lens.id}>{lens.optionLabel}</option>
+                ))}
+              </optgroup>
             </select>
             {lensLoadingId && <p className="lens-message">Loading lens…</p>}
             {lensError && <p className="lens-message lens-error">{lensError}</p>}
           </div>
           <div className="panel-heading">
-            <h2>{activeLens?.algorithm === 'lda' ? 'Topics' : 'Clusters'} <span>{activeLens?.clusterCount ?? '—'}</span></h2>
+            <h2>{lensPlural(activeLens)} <span>{activeLens?.clusterCount ?? '—'}</span></h2>
           </div>
           <button
-            className={`cluster-row all-clusters ${activeClusters.length === 0 ? 'active' : ''}`}
+            className={`cluster-row all-clusters ${paperSelection === null ? 'active' : ''}`}
             onClick={clearFocus}
-            aria-pressed={activeClusters.length === 0}
+            aria-pressed={paperSelection === null}
           >
             <span className="cluster-swatch constellation-swatch" />
             <span><strong>All papers</strong></span>
@@ -1967,7 +2089,7 @@ export default function Atlas() {
                 </button>
               ))}
           </div>
-          {activeClusters.length === 1 && (
+          {activeClusters.length === 1 && activeLens?.algorithm !== 'metadata' && (
             <section className="characteristic-papers" aria-live="polite">
               <div className="characteristic-heading">
                 <p className="eyebrow">Characteristic papers</p>
@@ -1996,7 +2118,7 @@ export default function Atlas() {
             <label className="noise-toggle">
               <input type="checkbox" checked={showNoise} onChange={(event) => setShowNoise(event.target.checked)} />
               <span />
-              Show unclustered papers
+              {activeLens.algorithm === 'metadata' ? 'Show papers without metadata' : 'Show unclustered papers'}
             </label>
           ) : (
             <p className="assignment-note">All papers are assigned in this lens.</p>
@@ -2126,6 +2248,14 @@ export default function Atlas() {
             }}
           />
 
+          {paperSelection && !nearestActive && (
+            <div className="selection-status" aria-live="polite">
+              <span><strong>{formatNumber(paperSelection.indices.size)}</strong> selected</span>
+              <small>from {lensCatalog?.lenses.find((lens) => lens.id === paperSelection.sourceLensId)?.name}</small>
+              <button onClick={clearFocus} aria-label="Clear paper selection">×</button>
+            </div>
+          )}
+
           {selectedMarker?.visible && selectedPoint && (
             <span
               className="point-marker selected-marker"
@@ -2194,7 +2324,7 @@ export default function Atlas() {
               <article className="paper-detail">
                 <div className="detail-cluster-label">
                   <span style={{ background: clusterColor(selectedClusterId ?? -1, clusterById) }} />
-                  {selectedCluster?.label ?? 'Unclustered'}
+                  {selectedCluster?.label ?? (activeLens?.algorithm === 'metadata' ? 'Metadata unavailable' : 'Unclustered')}
                 </div>
                 <h3>{selectedSearch?.[0] ?? 'Paper details'}</h3>
                 <p className="paper-authors">{selectedSearch?.[1] || 'Authorship not listed'}</p>
@@ -2295,22 +2425,53 @@ export default function Atlas() {
                 )}
                 <button className="secondary-link" onClick={closeSelectedPaper}>Back</button>
               </article>
+            ) : paperSelection && paperSelection.sourceLensId !== activeLensId ? (
+              <article className="cluster-detail retained-selection-detail">
+                <p className="eyebrow">Retained paper selection</p>
+                <h3>{paperSelection.label}</h3>
+                <p>
+                  <strong>{formatNumber(paperSelection.indices.size)}</strong> papers selected in{' '}
+                  {lensCatalog?.lenses.find((lens) => lens.id === paperSelection.sourceLensId)?.name}.
+                </p>
+                <section>
+                  <p className="eyebrow">Assignments in this lens</p>
+                  <ul className="selection-distribution">
+                    {selectionDistribution.slice(0, 10).map((item) => (
+                      <li key={item.id}>
+                        <i style={{ background: clusterColor(item.id, clusterById) }} />
+                        <span>{item.label}</span>
+                        <b
+                          style={{ width: `${Math.max(2, item.count / paperSelection.indices.size * 100)}%` }}
+                          aria-hidden="true"
+                        />
+                        <small>{formatNumber(item.count)}</small>
+                      </li>
+                    ))}
+                  </ul>
+                  {selectionDistribution.length > 10 && (
+                    <p className="selection-remainder">Plus {selectionDistribution.length - 10} smaller assignments.</p>
+                  )}
+                </section>
+                <button className="secondary-link" onClick={clearFocus}>Clear selection</button>
+              </article>
             ) : activeClusters.length === 1 && selectedCluster ? (
               <article className="cluster-detail">
                 <div className="cluster-orb" style={{ background: clusterColor(selectedCluster.id, clusterById) }} />
                 <h3>{selectedCluster.label}</h3>
-                <p><strong>{formatNumber(selectedCluster.count)}</strong> papers assigned to this {activeLens?.algorithm === 'lda' ? 'topic' : 'cluster'}.</p>
-                <section>
-                  <p className="eyebrow">Characteristic terms</p>
-                  <div className="term-list">
-                    {selectedCluster.terms.map((term) => <span key={term}>{term}</span>)}
-                  </div>
-                </section>
+                <p><strong>{formatNumber(selectedCluster.count)}</strong> papers assigned to this {lensSingular(activeLens)}.</p>
+                {selectedCluster.terms.length > 0 && (
+                  <section>
+                    <p className="eyebrow">Characteristic terms</p>
+                    <div className="term-list">
+                      {selectedCluster.terms.map((term) => <span key={term}>{term}</span>)}
+                    </div>
+                  </section>
+                )}
                 <button className="secondary-link" onClick={clearFocus}>Return to the full atlas</button>
               </article>
             ) : activeClusters.length > 1 ? (
               <article className="cluster-detail multi-cluster-detail">
-                <h3>{activeClusters.length} clusters selected</h3>
+                <h3>{activeClusters.length} {lensPlural(activeLens).toLowerCase()} selected</h3>
                 <p><strong>{formatNumber(activeClusterPaperCount)}</strong> papers highlighted.</p>
                 <ul>
                   {activeClusters.map((clusterId) => {
@@ -2340,13 +2501,15 @@ export default function Atlas() {
                       ? `K-means · PCA ${activeLens.method.pcaDimensions}D`
                       : activeLens?.algorithm === 'lda'
                         ? `LDA · ${activeLens.method.topicCount} topics`
+                      : activeLens?.algorithm === 'metadata'
+                        ? activeLens.name
                       : 'Clustering lens'}
                 </h3>
                 {activeLens && (
                   <p className="lens-outcome">
-                    <strong>{activeLens.clusterCount}</strong> {activeLens.algorithm === 'lda' ? 'topics' : 'clusters'}
+                    <strong>{activeLens.clusterCount}</strong> {lensPlural(activeLens).toLowerCase()}
                     <span>·</span>
-                    <strong>{activeLens.noisePct.toFixed(1)}%</strong> unassigned
+                    <strong>{activeLens.noisePct.toFixed(1)}%</strong> {unassignedLabel(activeLens)}
                   </p>
                 )}
               </article>
@@ -2355,11 +2518,18 @@ export default function Atlas() {
           {activeLens && lensCatalog && (
             <MethodSummary
               lens={activeLens}
-              collapsed={selectedIndex !== null || activeClusters.length > 0}
+              collapsed={selectedIndex !== null || paperSelection !== null}
             />
           )}
         </aside>
       </section>
+      {workspace === 'correlations' && lensCatalog && (
+        <CorrelationWorkspace
+          lenses={lensCatalog.lenses}
+          defaultLensId={lensCatalog.defaultLens}
+          loadLabels={loadLensLabels}
+        />
+      )}
     </main>
   );
 }

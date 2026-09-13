@@ -17,7 +17,8 @@
     "test:search": "node --experimental-strip-types --test scripts/paperSearch.test.ts",
     "test:3d:data": "python scripts/validate-3d-projection.py",
     "test:lenses": "python scripts/validate-lenses-data.py",
-    "test:exploration": "python scripts/validate-exploration-data.py"
+    "test:exploration": "python scripts/validate-exploration-data.py",
+    "test:associations": "node --experimental-strip-types --test scripts/associationAnalysis.test.ts && python scripts/validate-associations-data.py"
   },
   "dependencies": {
     "next": "16.2.6",

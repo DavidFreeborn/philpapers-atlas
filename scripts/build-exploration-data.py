@@ -173,6 +173,8 @@ def build_representatives(
 
     lens_rows: dict[str, list[list[list[float | int]]]] = {}
     for lens in catalog["lenses"]:
+        if lens["algorithm"] == "metadata":
+            continue
         labels = np.fromfile(ROOT / "public" / lens["labelsFile"], dtype="<i2")
         rows = cluster_representatives(embeddings, labels, int(lens["clusterCount"]))
         lens_rows[lens["id"]] = rows

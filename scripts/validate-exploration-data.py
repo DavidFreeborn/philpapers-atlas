@@ -52,6 +52,8 @@ def main() -> None:
     representative_lists = 0
     representative_papers = 0
     for lens in catalog["lenses"]:
+        if lens["algorithm"] == "metadata":
+            continue
         rows = representatives["lenses"].get(lens["id"])
         if rows is None or len(rows) != int(lens["clusterCount"]):
             raise ValueError(f"Representative lists do not match {lens['id']}")

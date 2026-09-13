@@ -7,13 +7,14 @@ The application does not refit PCA, UMAP, HDBSCAN, k-means, or LDA.
 - `clusters.json`: reviewed cluster names, sizes, and TF-IDF terms.
 - `search.json`: compact title/author/date/URL index used for immediate paper details and search.
 - `details/*.json`: abstract-only shards, prefetched on hover and fetched on demand.
-- `lenses/catalog.json`: methods, metrics, names, terms, and counts for the available clustering lenses.
+- `lenses/catalog.json`: methods, metrics, names, terms, and counts for clustering, topic, and metadata lenses.
 - `lenses/labels/*.bin`: compact Int16 assignment arrays, loaded on demand; all use the same paper order.
+- `lenses/associations.json`: precomputed bias-corrected Cramér’s V for every lens pair.
 - `projection-3d.bin`: normalized little-endian Float32 XYZ coordinates in the same paper order, loaded only when 3D is requested.
 - `projection-3d.json`: 3D method, parameter, validation, normalization, corpus-hash, and checksum metadata.
 - `exploration/neighbors.json`: SPECTER nearest-neighbour method, shard, encoding, and exact-audit metadata.
 - `exploration/neighbors/*.bin`: packed 50-neighbour UInt24 rows in 200-paper shards, fetched only when requested.
-- `exploration/representatives.json`: the ten papers closest to every lens cluster's centroid in the original normalised 768D SPECTER space.
+- `exploration/representatives.json`: the ten papers closest to every clustering/topic category's centroid in the original normalised 768D SPECTER space; descriptive metadata categories are excluded.
 - `manifest.json`: provenance and validation counts.
 
 Regenerate with `scripts/build-map-data.py`; its source directory must contain
@@ -25,6 +26,12 @@ can be reproduced with `scripts/scan-hdbscan-2d.py`. LDA scan results, selected
 model metadata, and assignments are also stored under `analysis/`; reproduce them
 with `scripts/scan-lda.py`, then update an existing catalogue with
 `scripts/build-lenses-data.py --lda-only`.
+
+Regenerate the publication-type and publication-period lenses and all pairwise
+association scores with `scripts/build-association-data.py`. Missing metadata is
+encoded as `-1` and excluded pairwise; HDBSCAN noise remains an explicit category.
+Validate the browser calculation and every published score with
+`scripts/validate-associations-data.py` and `scripts/associationAnalysis.test.ts`.
 
 The two robustness-study HDBSCAN lenses use the exact frozen 30D/49-cluster and
 20D/29-cluster assignments evaluated in `analysis/robustness-study/REPORT.md`.

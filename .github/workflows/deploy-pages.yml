@@ -37,6 +37,7 @@ jobs:
       - run: npm run test:3d:data
       - run: npm run test:lenses
       - run: npm run test:exploration
+      - run: npm run test:associations
       - run: npm run build:pages
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

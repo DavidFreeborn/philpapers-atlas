@@ -425,8 +425,9 @@ button { color: inherit; }
 }
 
 /* Shared tool navigation occupies its own row. */
-.atlas-workspace{height:calc(100dvh - var(--header-height) - 48px)}
+.atlas-workspace{height:calc(100dvh - var(--header-height) - 48px);overflow:hidden}
 .cluster-list{grid-template-columns:minmax(0,1fr)}
 .cluster-row strong{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.4}
 .brand-text strong{font-family:var(--tool-serif,Georgia,serif);font-size:24px}
-.method-summary .tool-methodology{margin:12px 0;color:var(--ink)}
+body.tool-page{height:auto;overflow:auto}.tool-page .atlas-app{height:auto;min-height:100dvh;overflow:visible}
+.tool-page .atlas-methodology{width:calc(100% - 48px);margin:24px 24px 0;color:var(--ink)}.atlas-methodology .method-table,.atlas-methodology .method-metrics{max-width:none;font:14px/1.5 var(--font-sans,system-ui)}

@@ -428,13 +428,13 @@ function MethodContent({ lens }: { lens: Lens }) {
   const hasRobustnessStudyMetrics = lens.metrics.resamplingClusterJaccard !== undefined;
   return (
     <>
-      <details className="tool-methodology"><summary>Model and methodology</summary>
+
 <h3>Assumptions and limitations</h3>
 <p>This map is an exploratory representation of the included PhilPapers corpus. It does not measure philosophical importance, quality or influence. Coverage depends on available records and text.</p>
 <p>Projection compresses a high-dimensional representation: nearby points can help identify related papers, but distances, empty space and apparent islands are not a literal map of disciplinary boundaries. Cluster membership depends on the selected representation, algorithm and parameters. Metadata categories are recorded classifications; topic and embedding clusters are model outputs.</p>
 <h3>References and reproducibility</h3>
 <p>See the <a href="https://github.com/DavidFreeborn/philpapers-atlas#readme">repository and analysis documentation</a> for data provenance, model selection and robustness checks. Parameters and metrics for the selected lens appear below; scores computed in different spaces are not directly interchangeable.</p>
-</details><p className="method-heading">Parameters</p>
+<h3>Parameters</h3>
       <dl className="method-table">
         {isMetadata ? (
           <>
@@ -520,20 +520,12 @@ function MethodContent({ lens }: { lens: Lens }) {
   );
 }
 
-function MethodSummary({ lens, collapsed }: { lens: Lens; collapsed: boolean }) {
-  if (collapsed) {
-    return (
-      <details className="method-summary">
-        <summary>Model, methodology and metrics</summary>
-        <MethodContent lens={lens} />
-      </details>
-    );
-  }
-  return (
-    <section className="method-summary method-summary-open">
-      <MethodContent lens={lens} />
-    </section>
-  );
+function MethodSummary({ lens }: { lens: Lens }) {
+  return <details className="tool-methodology atlas-methodology">
+    <summary>Model and methodology</summary>
+    <p>Selected lens: {lens.name}. Parameters and metrics below follow the active lens.</p>
+    <MethodContent lens={lens} />
+  </details>;
 }
 
 function Loader() {
@@ -2521,12 +2513,7 @@ export default function Atlas() {
               </article>
             )}
           </div>
-          {activeLens && lensCatalog && (
-            <MethodSummary
-              lens={activeLens}
-              collapsed={selectedIndex !== null || paperSelection !== null}
-            />
-          )}
+
         </aside>
       </section>
       {workspace === 'correlations' && lensCatalog && (
@@ -2536,6 +2523,7 @@ export default function Atlas() {
           loadLabels={loadLensLabels}
         />
       )}
+      {activeLens && lensCatalog && <MethodSummary lens={activeLens} />}
     </main>
   );
 }

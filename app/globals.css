@@ -423,3 +423,10 @@ button { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
+
+/* Shared tool navigation occupies its own row. */
+.atlas-workspace{height:calc(100dvh - var(--header-height) - 48px)}
+.cluster-list{grid-template-columns:minmax(0,1fr)}
+.cluster-row strong{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.4}
+.brand-text strong{font-family:var(--tool-serif,Georgia,serif);font-size:24px}
+.method-summary .tool-methodology{margin:12px 0;color:var(--ink)}

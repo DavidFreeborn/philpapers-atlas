@@ -51,6 +51,7 @@ function cellDescription(cell: AssociationCell, total: number): string {
 }
 
 export default function CorrelationWorkspace({ lenses, defaultLensId, loadLabels }: Props) {
+  const [tab, setTab] = useState('overview');
   const [overview, setOverview] = useState<AssociationOverview | null>(null);
   const [overviewError, setOverviewError] = useState('');
   const [leftId, setLeftId] = useState(defaultLensId);
@@ -145,8 +146,8 @@ export default function CorrelationWorkspace({ lenses, defaultLensId, loadLabels
   }, [columns, result, rows]);
 
   return (
-    <section className="correlation-workspace" aria-label="Correlation matrices">
-      <div className="association-overview-panel">
+    <section className="correlation-workspace review-associations" aria-label="Associations"><nav className="review-tabs"><button aria-pressed={tab === 'overview'} onClick={() => setTab('overview')}>Association overview</button><button aria-pressed={tab === 'detail'} onClick={() => setTab('detail')}>Detailed comparison</button></nav>
+      <div className="association-overview-panel" hidden={tab !== 'overview'}>
         <div className="correlation-heading">
           <p className="eyebrow">All lenses</p>
           <h1>Pairwise association</h1>
@@ -207,7 +208,7 @@ export default function CorrelationWorkspace({ lenses, defaultLensId, loadLabels
         )}
       </div>
 
-      <div className="association-detail-panel">
+      <div className="association-detail-panel" hidden={tab !== 'detail'}>
         <div className="association-selectors">
           <label>
             <span>Rows</span>

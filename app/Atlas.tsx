@@ -138,13 +138,14 @@ type LensCatalog = {
 
 type View = { zoom: number; panX: number; panY: number };
 type DisplayMode = '2d' | '3d';
-type Workspace = 'map' | 'correlations';
+type Workspace = 'map' | 'correlations' | 'methodology';
 
 type PaperSelection = {
   indices: ReadonlySet<number>;
   label: string;
   sourceLensId: string;
   sourceClusterIds: number[];
+  samples: Record<number, number[]>;
 };
 
 type Projection3DMetadata = {
@@ -429,11 +430,8 @@ function MethodContent({ lens }: { lens: Lens }) {
   return (
     <>
 
-<h3>Assumptions and limitations</h3>
-<p>This map is an exploratory representation of the included PhilPapers corpus. It does not measure philosophical importance, quality or influence. Coverage depends on available records and text.</p>
-<p>Projection compresses a high-dimensional representation: nearby points can help identify related papers, but distances, empty space and apparent islands are not a literal map of disciplinary boundaries. Cluster membership depends on the selected representation, algorithm and parameters. Metadata categories are recorded classifications; topic and embedding clusters are model outputs.</p>
-<h3>References and reproducibility</h3>
-<p>See the <a href="https://github.com/DavidFreeborn/philpapers-atlas#readme">repository and analysis documentation</a> for data provenance, model selection and robustness checks. Parameters and metrics for the selected lens appear below; scores computed in different spaces are not directly interchangeable.</p>
+<h3>Data and reproducibility</h3>
+<p>See the <a href="https://github.com/DavidFreeborn/philpapers-atlas#readme">repository and analysis documentation</a> for data provenance, model selection and robustness checks. Parameters and metrics below describe the selected lens.</p>
 <h3>Parameters</h3>
       <dl className="method-table">
         {isMetadata ? (
@@ -580,7 +578,9 @@ export default function Atlas() {
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<View>({ zoom: 1, panX: 0, panY: 0 });
   const [displayMode, setDisplayMode] = useState<DisplayMode>('2d');
-  const [workspace, setWorkspace] = useState<Workspace>('map');
+  const [workspace, setWorkspaceState] = useState<Workspace>('map');
+  const setWorkspace = (next: Workspace) => {setWorkspaceState(next);window.location.hash=next==='correlations'?'associations':next;};
+  useEffect(()=>{const sync=()=>setWorkspaceState(window.location.hash==='#associations'?'correlations':window.location.hash==='#methodology'?'methodology':'map');sync();window.addEventListener('hashchange',sync);return()=>window.removeEventListener('hashchange',sync);},[]);
   const [projection3d, setProjection3d] = useState<Projection3D | null>(null);
   const [projectionLoading, setProjectionLoading] = useState(false);
   const [projectionError, setProjectionError] = useState('');
@@ -756,8 +756,6 @@ export default function Atlas() {
       setActiveClusters(
         paperSelection?.sourceLensId === lensId ? paperSelection.sourceClusterIds : [],
       );
-      setNearestActive(false);
-      setNearestState(null);
       setHoveredIndex(null);
       setShowNoise(true);
     } catch (error) {
@@ -993,17 +991,19 @@ export default function Atlas() {
         uniform float uCameraDistance;
         out vec3 vColor;
         out float vAlpha;
+        out float vNearest;
 
         void main() {
           bool isNoise = aCluster < -0.5;
           bool hasHighlight = uHasHighlight > 0.5;
           bool highlighted = aHighlight > 0.5;
+          vNearest = aHighlight > 1.5 ? 1.0 : 0.0;
           if (isNoise) {
             vAlpha = (uShowNoise > 0.5 || highlighted)
-              ? (highlighted ? 0.88 : (hasHighlight ? 0.055 : 0.50))
+              ? (highlighted ? 0.88 : (hasHighlight ? 0.018 : 0.50))
               : 0.0;
           } else {
-            vAlpha = highlighted ? 0.98 : (hasHighlight ? 0.055 : 0.92);
+            vAlpha = highlighted ? 0.98 : (hasHighlight ? 0.018 : 0.92);
           }
           if (vAlpha <= 0.0) {
             gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
@@ -1021,25 +1021,28 @@ export default function Atlas() {
             float farFade = clamp(uCameraDistance / depth, 0.20, 1.0);
             float nearFade = smoothstep(0.09, 0.27, depth / max(uCameraDistance, 0.001));
             vAlpha *= ratio * ratio * farFade * nearFade;
-            gl_PointSize = drawn * (highlighted ? 1.18 : 1.0);
+            gl_PointSize = drawn * (highlighted ? 2.1 : 1.0);
           } else {
             float x = (aPosition.x - uCenter.x) * uBaseScale * uZoom + uViewport.x * 0.5 + uPan.x;
             float y = -(aPosition.y - uCenter.y) * uBaseScale * uZoom + uViewport.y * 0.5 + uPan.y;
             gl_Position = vec4(x / uViewport.x * 2.0 - 1.0, 1.0 - y / uViewport.y * 2.0, 0.0, 1.0);
-            gl_PointSize = uPointSize * uDpr * (highlighted ? 1.18 : 1.0);
+            gl_PointSize = uPointSize * uDpr * (highlighted ? 2.1 : 1.0);
           }
-          vColor = aColor;
+          if(vNearest > 0.5){gl_PointSize=max(gl_PointSize,14.0*uDpr);vAlpha=1.0;}
+          vColor = highlighted ? mix(aColor, vec3(1.0), 0.24) : aColor;
         }`,
         `#version 300 es
         precision highp float;
         in vec3 vColor;
         in float vAlpha;
+        in float vNearest;
         out vec4 outColor;
 
         void main() {
           vec2 point = gl_PointCoord * 2.0 - 1.0;
           float radius = dot(point, point);
           if (radius > 1.0) discard;
+          if(vNearest > 0.5){outColor=vec4(radius>0.78?vec3(0.03):radius>0.38?vec3(1.0):vColor,1.0);return;}
           float coverage = 1.0 - smoothstep(0.48, 1.0, radius);
           float alpha = vAlpha * coverage;
           if (!(alpha >= 0.004)) discard;
@@ -1232,9 +1235,9 @@ export default function Atlas() {
     if (!renderer || !currentLabels || currentLabels.length !== renderer.pointCount) return;
     const highlights = new Float32Array(currentLabels.length);
     if (nearestActive && selectedIndex !== null) {
-      highlights[selectedIndex] = 1;
+      highlights[selectedIndex] = 2;
       nearestPaperIndices.forEach((index) => {
-        if (index >= 0 && index < highlights.length) highlights[index] = 1;
+        if (index >= 0 && index < highlights.length) highlights[index] = 2;
       });
     } else if (paperSelection) {
       paperSelection.indices.forEach((index) => {
@@ -1678,11 +1681,6 @@ export default function Atlas() {
         event.preventDefault(); zoom3dBy(1.28);
       } else if (key === 'r') {
         event.preventDefault();
-        setActiveClusters([]);
-        setPaperSelection(null);
-        setSelectedIndex(null);
-        setNearestActive(false);
-        setNearestState(null);
         setCamera3d(resetCamera3D());
       }
       return;
@@ -1693,17 +1691,11 @@ export default function Atlas() {
       event.preventDefault(); setView((current) => ({ ...current, zoom: clamp(current.zoom / 1.35, 0.65, 28) }));
     } else if (key === 'r') {
       event.preventDefault();
-      setActiveClusters([]);
-      setPaperSelection(null);
-      setSelectedIndex(null);
-      setNearestActive(false);
-      setNearestState(null);
       setView({ zoom: 1, panX: 0, panY: 0 });
     }
   }, [displayMode, zoom3dBy]);
 
-  const focusPoint = useCallback(
-    (index: number) => {
+  const locatePoint = useCallback((index: number) => {
       if (!mapData) return;
       const metrics = getMetrics();
       const point = mapData.points[index];
@@ -1730,28 +1722,12 @@ export default function Atlas() {
           panY: (point[1] - metrics.centerY) * metrics.baseScale * zoom,
         });
       }
-      setSelectedIndex(index);
-      setActiveClusters(clusterId >= 0 ? [clusterId] : []);
-      if (clusterId >= 0 && activeLens) {
-        const indices = new Set(pointGroups.get(clusterId) ?? []);
-        setPaperSelection({
-          indices,
-          label: clusterById.get(clusterId)?.label ?? `${lensSingular(activeLens)} ${clusterId}`,
-          sourceLensId: activeLens.id,
-          sourceClusterIds: [clusterId],
-        });
-      } else {
-        setPaperSelection(null);
-      }
-      setNearestActive(false);
-      setNearestState(null);
-      setShowInspector(true);
-      setRightSidebarCollapsed(false);
-      setShowLegend(false);
-      setQuery('');
-    },
-    [activeLens, clusterById, currentLabels, displayMode, getMetrics, mapData, pointGroups, projection3d, view.zoom],
-  );
+
+  }, [mapData, getMetrics, currentLabels, displayMode, projection3d, view.zoom]);
+  const focusPoint = useCallback((index: number) => {
+    setSelectedIndex(index); setNearestActive(false); setNearestState(null);
+    setShowInspector(true); setRightSidebarCollapsed(false); setQuery('');
+  }, []);
 
   const handleSearchResultClick = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -1845,8 +1821,18 @@ export default function Atlas() {
     setNearestState(null);
     setShowLegend(false);
     setShowInspector(false);
-    frameClusters([]);
-  }, [frameClusters]);
+  }, []);
+
+  useEffect(() => {
+    const handler = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (workspace !== 'map') return;
+      if (query) setQuery('');
+      else clearFocus();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [workspace, query, clearFocus]);
 
   const toggleCluster = useCallback((clusterId: number) => {
     const nextClusters = activeClusterSet.has(clusterId)
@@ -1864,6 +1850,7 @@ export default function Atlas() {
         label: names.length === 1 ? names[0] : `${names.length} ${lensPlural(activeLens).toLowerCase()}`,
         sourceLensId: activeLens.id,
         sourceClusterIds: nextClusters,
+        samples: Object.fromEntries(nextClusters.map(id=>[id,(pointGroups.get(id)??[]).slice(0,10)])),
       });
     } else {
       setPaperSelection(null);
@@ -1872,7 +1859,8 @@ export default function Atlas() {
     setNearestActive(false);
     setNearestState(null);
     if (nextClusters.length) setShowInspector(true);
-    frameClusters(nextClusters);
+    setShowInspector(nextClusters.length > 0);
+    setRightSidebarCollapsed(false);
   }, [activeClusterSet, activeClusters, activeLens, clusterById, frameClusters, pointGroups]);
 
   const selectedPoint = selectedIndex === null ? null : mapData?.points[selectedIndex] ?? null;
@@ -1883,9 +1871,6 @@ export default function Atlas() {
       ? clusterById.get(activeClusters[0])
       : null;
   const activeClusterPaperCount = paperSelection?.indices.size ?? 0;
-  const characteristicPapers = activeClusters.length === 1
-    ? representativeData?.lenses[activeLensId]?.[activeClusters[0]] ?? null
-    : null;
   const selectedSearch = selectedIndex === null ? null : searchData?.[selectedIndex] ?? null;
   const selectedDetail = selectedIndex !== null && selectedSupplement?.index === selectedIndex
     ? selectedSupplement.row
@@ -1996,11 +1981,12 @@ export default function Atlas() {
               className={workspace === 'correlations' ? 'active' : ''}
               onClick={() => setWorkspace('correlations')}
               aria-current={workspace === 'correlations' ? 'page' : undefined}
-              aria-label="Correlation matrices"
+              aria-label="Associations"
             >
-              <span className="wide-tab-label">Correlation matrices</span>
-              <span className="short-tab-label">Matrices</span>
+              <span className="wide-tab-label">Associations</span>
+              <span className="short-tab-label">Associations</span>
             </button>
+            <button className={workspace === 'methodology' ? 'active' : ''} onClick={() => setWorkspace('methodology')}>Methodology</button>
           </nav>
           {workspace === 'map' && (
             <button className="mobile-panel-button" onClick={() => setShowLegend(true)}>{lensPlural(activeLens)}</button>
@@ -2063,7 +2049,7 @@ export default function Atlas() {
             {lensError && <p className="lens-message lens-error">{lensError}</p>}
           </div>
           <div className="panel-heading">
-            <h2>{lensPlural(activeLens)} <span>{activeLens?.clusterCount ?? '—'}</span></h2>
+            <h2>{lensPlural(activeLens)} <span>{activeLens?.clusterCount ?? '—'}</span></h2>{paperSelection && <button onClick={clearFocus}>Deselect</button>}
           </div>
           <button
             className={`cluster-row all-clusters ${paperSelection === null ? 'active' : ''}`}
@@ -2083,35 +2069,10 @@ export default function Atlas() {
                   title={`${cluster.label} — ${formatNumber(cluster.count)} papers`}
                 >
                   <span className="cluster-swatch" style={{ background: clusterColor(cluster.id, clusterById) }} />
-                  <span><strong>{cluster.label}</strong></span>
+                  <span><strong>{cluster.label}</strong></span><span aria-hidden="true">{activeClusterSet.has(cluster.id) ? '✓' : '+'}</span>
                 </button>
               ))}
           </div>
-          {activeClusters.length === 1 && activeLens?.algorithm !== 'metadata' && (
-            <section className="characteristic-papers" aria-live="polite">
-              <div className="characteristic-heading">
-                <p className="eyebrow">Characteristic papers</p>
-                <span>Closest to the SPECTER centroid</span>
-              </div>
-              {characteristicPapers ? (
-                <ol>
-                  {characteristicPapers.map(([index]) => {
-                    const row = searchData?.[index];
-                    return (
-                      <li key={index}>
-                        <button onClick={() => focusPoint(index)}>
-                          <strong>{row?.[0] ?? `Paper ${index + 1}`}</strong>
-                          {row?.[1] && <span>{row[1]}</span>}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ol>
-              ) : (
-                <p className="characteristic-loading">Loading…</p>
-              )}
-            </section>
-          )}
           {activeLens && activeLens.noiseCount > 0 ? (
             <label className="noise-toggle">
               <input type="checkbox" checked={showNoise} onChange={(event) => setShowNoise(event.target.checked)} />
@@ -2165,6 +2126,7 @@ export default function Atlas() {
 
           <canvas
             ref={canvasRef}
+            data-camera={JSON.stringify(displayMode === '3d' ? camera3d : view)}
             className={`atlas-canvas mode-${displayMode}`}
             role="application"
             tabIndex={0}
@@ -2248,9 +2210,9 @@ export default function Atlas() {
 
           {paperSelection && !nearestActive && (
             <div className="selection-status" aria-live="polite">
-              <span><strong>{formatNumber(paperSelection.indices.size)}</strong> selected</span>
+              <span><strong>{formatNumber(paperSelection.indices.size)}</strong> papers selected · {paperSelection.sourceClusterIds.length} {paperSelection.sourceClusterIds.length === 1 ? 'group' : 'groups'}</span>
               <small>from {lensCatalog?.lenses.find((lens) => lens.id === paperSelection.sourceLensId)?.name}</small>
-              <button onClick={clearFocus} aria-label="Clear paper selection">×</button>
+              <button onClick={clearFocus} aria-label="Deselect">×</button>
             </div>
           )}
 
@@ -2300,7 +2262,7 @@ export default function Atlas() {
                 : setView((current) => ({ ...current, zoom: clamp(current.zoom / 1.45, 0.65, 28) }))}
               aria-label="Zoom out"
             >−</button>
-            <button className="reset-control" onClick={clearFocus}>Reset</button>
+            <button className="reset-control" onClick={() => frameClusters([])}>Reset view</button><button onClick={clearFocus} disabled={!paperSelection && selectedIndex === null && !nearestActive}>Deselect</button>
           </div>
           <button className="mobile-inspector-button" onClick={() => setShowInspector(true)}>Details</button>
         </div>
@@ -2313,8 +2275,8 @@ export default function Atlas() {
           >›</button>
           <button
             className={`panel-close inspector-close ${selectedIndex !== null ? 'paper-selected-close' : ''}`}
-            onClick={() => selectedIndex !== null ? closeSelectedPaper() : setShowInspector(false)}
-            aria-label={selectedIndex !== null ? 'Back to cluster overview' : 'Close details panel'}
+            onClick={clearFocus}
+            aria-label="Close details and deselect"
           >×</button>
 
           <div className="paper-panel-content">
@@ -2325,6 +2287,7 @@ export default function Atlas() {
                   {selectedCluster?.label ?? (activeLens?.algorithm === 'metadata' ? 'Metadata unavailable' : 'Unclustered')}
                 </div>
                 <h3>{selectedSearch?.[0] ?? 'Paper details'}</h3>
+                <button className="secondary-link" onClick={() => locatePoint(selectedIndex)}>Locate on map</button>
                 <p className="paper-authors">{selectedSearch?.[1] || 'Authorship not listed'}</p>
                 <dl className="paper-meta">
                   <div><dt>Date</dt><dd>{selectedSearch?.[2] || 'Not listed'}</dd></div>
@@ -2369,7 +2332,7 @@ export default function Atlas() {
                         }}
                         disabled={!neighbourMetadata}
                         aria-pressed={nearestActive}
-                      >{nearestActive ? 'Clear' : 'Highlight'}</button>
+                      >{nearestActive ? 'Deselect neighbours' : 'Highlight'}</button>
                     </div>
                   </div>
                   {nearestActive && (
@@ -2450,7 +2413,7 @@ export default function Atlas() {
                     <p className="selection-remainder">Plus {selectionDistribution.length - 10} smaller assignments.</p>
                   )}
                 </section>
-                <button className="secondary-link" onClick={clearFocus}>Clear selection</button>
+                <button className="secondary-link" onClick={clearFocus}>Deselect</button>
               </article>
             ) : activeClusters.length === 1 && selectedCluster ? (
               <article className="cluster-detail">
@@ -2465,7 +2428,7 @@ export default function Atlas() {
                     </div>
                   </section>
                 )}
-                <button className="secondary-link" onClick={clearFocus}>Return to the full atlas</button>
+                <button className="secondary-link" onClick={clearFocus}>Deselect</button>
               </article>
             ) : activeClusters.length > 1 ? (
               <article className="cluster-detail multi-cluster-detail">
@@ -2486,7 +2449,7 @@ export default function Atlas() {
                     );
                   })}
                 </ul>
-                <button className="secondary-link" onClick={clearFocus}>Clear selection</button>
+                <button className="secondary-link" onClick={clearFocus}>Deselect</button>
               </article>
             ) : (
               <article className="atlas-overview">
@@ -2512,6 +2475,15 @@ export default function Atlas() {
                 )}
               </article>
             )}
+            {selectedIndex === null && paperSelection && paperSelection.sourceClusterIds.map(clusterId => {
+              const sourceLens = lensCatalog?.lenses.find(l=>l.id===paperSelection.sourceLensId);
+              const ranked = representativeData?.lenses[paperSelection.sourceLensId]?.[clusterId];
+              const indices = ranked?.map(([index])=>index) ?? paperSelection.samples[clusterId];
+              return <section key={clusterId} className="characteristic-papers">
+                <div className="characteristic-heading"><p className="eyebrow">{sourceLens?.clusters.find(c=>c.id===clusterId)?.label ?? 'Selected group'}</p><span>{ranked?'Characteristic papers · closest to the SPECTER centroid':'Sample papers'}</span></div>
+                <ol>{indices.map(index=><li key={index}><button onClick={()=>focusPoint(index)}><strong>{searchData?.[index]?.[0] ?? 'Paper '+(index+1)}</strong>{searchData?.[index]?.[1] && <span>{searchData[index][1]}</span>}</button></li>)}</ol>
+              </section>;
+            })}
           </div>
 
         </aside>
@@ -2523,7 +2495,7 @@ export default function Atlas() {
           loadLabels={loadLensLabels}
         />
       )}
-      {activeLens && lensCatalog && <MethodSummary lens={activeLens} />}
+      {workspace === 'methodology' && activeLens && <article className="atlas-method-page"><h2>Methodology</h2><p>The atlas contains 69,400 PhilPapers records. SPECTER embeddings represent their text, and UMAP places them on the map. Lenses show clustering results, topics and source metadata.</p><h3>Nearest and characteristic papers</h3><p>Nearest papers are ranked by cosine similarity in the original SPECTER space. Characteristic papers are closest to their group’s centroid where those results are available; other groups show a sample.</p><h3>Selected lens: {activeLens.name}</h3><MethodContent lens={activeLens}/></article>}
     </main>
   );
 }

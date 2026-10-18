@@ -43,6 +43,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <nav className="tool-navigation" aria-label="Return links"><span><a href="https://www.davidpeterwallisfreeborn.com/fun/research-atlases/">← Back to atlases</a><a style={{marginLeft:20}} href="https://www.davidpeterwallisfreeborn.com/fun/">Back to interactive tools</a></span></nav>
         {children}
       </body>
     </html>

@@ -443,3 +443,6 @@ body.tool-page{height:auto;overflow:auto}.tool-page .atlas-app{height:auto;min-h
 .atlas-method-page{height:calc(100dvh - var(--header-height) - 48px);box-sizing:border-box}.characteristic-heading{display:block}.characteristic-heading span{display:block;text-align:left;margin-top:6px}.workspace-methodology .atlas-search-wrap{visibility:hidden}
 
 .selected-marker{width:16px!important;height:16px!important;border:1.5px solid #fff!important;box-shadow:0 0 0 1px #091117,0 0 0 2px #fff!important}
+
+/* Return links for the hosted website. */
+body > .tool-navigation{box-sizing:border-box;display:flex;align-items:center;min-height:48px;padding:8px 24px;background:#fff;color:#222;border-bottom:1px solid #d0d0d0;font:14px/1.5 system-ui,sans-serif}body > .tool-navigation a{color:inherit;text-decoration:underline;text-underline-offset:3px}

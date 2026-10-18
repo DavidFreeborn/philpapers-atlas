@@ -1021,12 +1021,12 @@ export default function Atlas() {
             float farFade = clamp(uCameraDistance / depth, 0.20, 1.0);
             float nearFade = smoothstep(0.09, 0.27, depth / max(uCameraDistance, 0.001));
             vAlpha *= ratio * ratio * farFade * nearFade;
-            gl_PointSize = drawn * (highlighted ? 2.1 : 1.0);
+            gl_PointSize = drawn * (vNearest > 0.5 ? 2.1 : 1.0);
           } else {
             float x = (aPosition.x - uCenter.x) * uBaseScale * uZoom + uViewport.x * 0.5 + uPan.x;
             float y = -(aPosition.y - uCenter.y) * uBaseScale * uZoom + uViewport.y * 0.5 + uPan.y;
             gl_Position = vec4(x / uViewport.x * 2.0 - 1.0, 1.0 - y / uViewport.y * 2.0, 0.0, 1.0);
-            gl_PointSize = uPointSize * uDpr * (highlighted ? 2.1 : 1.0);
+            gl_PointSize = uPointSize * uDpr * (vNearest > 0.5 ? 2.1 : 1.0);
           }
           if(vNearest > 0.5){gl_PointSize=max(gl_PointSize,14.0*uDpr);vAlpha=1.0;}
           vColor = highlighted ? mix(aColor, vec3(1.0), 0.24) : aColor;
